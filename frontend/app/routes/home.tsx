@@ -1,5 +1,7 @@
 import type { Route } from "./+types/home";
 import { Welcome } from "../welcome/welcome";
+import {LeftNavigation, TopNavigation} from "~/routes/navigation/navigation";
+import "./home.scss"
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -9,5 +11,10 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export default function Home() {
-  return <Welcome />;
+  return <body>
+    <TopNavigation />
+    <div>
+      <LeftNavigation />
+    </div>
+    </body>;
 }

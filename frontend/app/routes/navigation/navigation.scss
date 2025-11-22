@@ -1,0 +1,41 @@
+.left-navigation {
+  width: 20%;             // takes 20% of the screen
+  height: 100vh;          // full screen height
+  background-color: #f8f9fa;
+  padding: 1rem;
+
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;            // spacing between buttons
+
+  position: fixed;        // keep it on the left side
+  top: 0;
+  left: 0;
+  justify-content: center;
+
+  // Style for the MUI Buttons
+  button {
+    justify-content: flex-start;  // align icon + text left
+    text-transform: none;         // disable uppercase
+    font-size: 1rem;
+
+    svg {
+      margin-right: 20px;          // spacing between icon and text
+    }
+  }
+}
+
+.top-navigation {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 10%;
+  display: flex;
+  justify-content: center;
+  .title-name {
+    color: cornflowerblue;
+    font-size: 3rem;
+  }
+
+}
