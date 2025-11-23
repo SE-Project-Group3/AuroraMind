@@ -1,3 +1,5 @@
+$top-nav-height: 10%;
+
 .left-navigation {
   width: 20%;             // takes 20% of the screen
   height: 100vh;          // full screen height
@@ -12,6 +14,7 @@
   top: 0;
   left: 0;
   justify-content: center;
+  z-index: 500;
 
   // Style for the MUI Buttons
   button {
@@ -20,7 +23,7 @@
     font-size: 1rem;
 
     svg {
-      margin-right: 20px;          // spacing between icon and text
+      margin-right: 1rem;          // spacing between icon and text
     }
   }
 }
@@ -29,13 +32,37 @@
   position: fixed;
   top: 0;
   left: 0;
+  height: $top-nav-height;
   width: 100%;
-  height: 10%;
+  background-color: #f8f9fa;
   display: flex;
-  justify-content: center;
+  align-items: center;
+  padding: 0 1rem;
+  z-index: 1000;  // Keeps it in front
+
   .title-name {
     color: cornflowerblue;
-    font-size: 3rem;
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin-left: 5rem;
+    margin-right: 2rem;
+    width: 15%;
   }
 
+  .current-date {
+    flex-grow: 1; // pushes next items to the right
+  }
+
+  .top-buttons {
+    display: flex;
+    flex-direction: row;
+    gap: 1rem;   // spacing between buttons
+    margin-right: 2rem;
+  }
+
+  .email-address {
+    font-size: 0.9rem;
+    color: #555;
+    margin-right: 3rem;
+  }
 }

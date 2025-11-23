@@ -11,10 +11,8 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export default function Home() {
-  return <body>
+  return <div>
     <TopNavigation />
-    <div>
-      <LeftNavigation />
-    </div>
-    </body>;
+    <LeftNavigation />
+    </div>;
 }

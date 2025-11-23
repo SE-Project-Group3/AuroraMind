@@ -1,5 +1,5 @@
 import Button from '@mui/material/Button'
-import { FaHouse, FaLocationCrosshairs, FaListUl, FaBook, FaPenClip } from "react-icons/fa6";
+import { FaHouse, FaLocationCrosshairs, FaListUl, FaBook, FaPenClip, FaRotate, FaGear, FaRegUser } from "react-icons/fa6";
 import "./navigation.scss";
 
 export function LeftNavigation() {
@@ -15,5 +15,12 @@ export function LeftNavigation() {
 export function TopNavigation() {
   return <menu className="top-navigation">
     <span className={"title-name"}>AuroraMind</span>
+    <div className="current-date">Placeholder for time component</div>
+    <menu className="top-buttons">
+      <Button variant={"contained"}><FaRotate size={"1.2rem"} /></Button>
+      <Button variant={"contained"}><FaGear size={"1.2rem"} /></Button>
+      <Button variant={"contained"}><FaRegUser size={"1.2rem"} /></Button>
+    </menu>
+    <span className={"email-address"}>sample@gmail.com</span>
   </menu>
 }
