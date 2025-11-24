@@ -2,7 +2,7 @@ import type { Route } from "./+types/home";
 import { Welcome } from "../welcome/welcome";
 import {LeftNavigation, TopNavigation} from "~/routes/navigation/navigation";
 import "./home.scss"
-import TodoView from "~/routes/todoPage/todolist";
+import { TodoView } from "~/routes/todoPage/todolist";
 
 export function meta({}: Route.MetaArgs) {
   return [
