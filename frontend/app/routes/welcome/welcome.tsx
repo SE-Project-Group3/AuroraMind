@@ -1,7 +1,21 @@
 import logoDark from "./logo-dark.svg";
 import logoLight from "./logo-light.svg";
+// import type { Route } from "../../../.react-router/types/app/welcome/+types";
+import type { Route } from "./+types/welcome";
 
-export function Welcome() {
+// 可选：meta
+export function meta({}: Route.MetaArgs) {
+    return [
+        { title: "Welcome - AuroraMind" },
+        { name: "description", content: "Welcome page" },
+    ];
+}
+
+export async function loader({}: Route.LoaderArgs) {
+    return null;
+}
+
+export default function Welcome() {
   return (
     <main className="flex items-center justify-center pt-16 pb-4">
       <div className="flex-1 flex flex-col items-center gap-16 min-h-0">

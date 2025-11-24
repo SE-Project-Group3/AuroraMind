@@ -1,6 +1,20 @@
 import "./todolist.scss";
 
-export function TodoView() {
+import type { Route } from "./+types/todolist";
+
+export function meta({}: Route.MetaArgs) {
+    return [
+        { title: "To-Do - AuroraMind" },
+        { name: "description", content: "To-Do List" },
+    ];
+}
+
+// loader
+export async function loader({}: Route.LoaderArgs) {
+    return null;
+}
+
+export default function TodoView() {
 
   const todosDefault = [
     { taskName: "Review and summarize the Raft consensus algorithm paper", taskDate: "Today" },

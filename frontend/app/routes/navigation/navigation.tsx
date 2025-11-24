@@ -2,16 +2,17 @@ import Button from '@mui/material/Button'
 import { FaHouse, FaLocationCrosshairs, FaListUl, FaBook, FaPenClip, FaRotate, FaGear, FaRegUser, FaBars } from "react-icons/fa6";
 import "./navigation.scss";
 import { useState } from "react";
+import { NavLink } from "react-router";
 
 export function LeftNavigation() {
   const [collapsed, setCollapsed] = useState(false);
 
   const menu = [
-    { icon: <FaHouse />, label: "Dashboard" },
-    { icon: <FaLocationCrosshairs />, label: "Manage Goals" },
-    { icon: <FaListUl />, label: "To-do List", active: true },
-    { icon: <FaBook />, label: "Knowledge Base" },
-    { icon: <FaPenClip />, label: "Summary" },
+    { icon: <FaHouse />, label: "Dashboard", to: "/app"},
+    { icon: <FaLocationCrosshairs />, label: "Manage Goals", to: "/app/goals" },
+    { icon: <FaListUl />, label: "To-do List", active: true, to: "/app/todo" },
+    { icon: <FaBook />, label: "Knowledge Base", to: "/app/knowledge" },
+    { icon: <FaPenClip />, label: "Summary", to: "/app/summary" },
   ];
 
   return (
@@ -23,10 +24,25 @@ export function LeftNavigation() {
       </div>
       <menu className="nav-menu">
         {menu.map((m, i) => (
-          <button key={i} className={`nav-item ${m.active ? "active" : ""}`}>
-            <span className="icon">{m.icon}</span>
-            <span className={`label ${collapsed ? "hidden" : ""}`}>{m.label}</span>
-          </button>
+            //NavLink替代了button来做路由跳转
+            <NavLink
+                key={m.label}
+                to={m.to}
+                end={m.to === "/app"} // Dashboard 精确匹配 /app
+                className={({ isActive }) =>
+                    [
+                        "nav-item",
+                        isActive ? "active" : "",
+                    ]
+                        .filter(Boolean)
+                        .join(" ")
+                }
+            >
+                <span className="icon">{m.icon}</span>
+                <span className={`label ${collapsed ? "hidden" : ""}`}>
+              {m.label}
+            </span>
+            </NavLink>
         ))}
       </menu>
     </aside>
