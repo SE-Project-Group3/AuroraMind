@@ -1,5 +1,4 @@
-from fastapi import APIRouter, HTTPException, status
-from fastapi import Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.api.v1.deps import get_current_user
 from app.core.db import AsyncSession, get_db
@@ -11,13 +10,13 @@ router = APIRouter(prefix="/me")
 user_service = UserService()
 
 
-@router.get("/info", response_model=StandardResponse[UserResponse])
-async def get_user_info(current_user: UserResponse = Depends(get_current_user)) -> StandardResponse[UserResponse | None]:
+@router.get("", response_model=StandardResponse[UserResponse])
+async def get_current_profile(current_user: UserResponse = Depends(get_current_user)) -> StandardResponse[UserResponse | None]:
     return ok(current_user)
 
 
-@router.post("/update", response_model=StandardResponse[UserResponse])
-async def update_user_info(user_data: UserUpdate, current_user: UserResponse = Depends(get_current_user), db: AsyncSession = Depends(get_db)) -> StandardResponse[UserResponse | None]:
+@router.put("", response_model=StandardResponse[UserResponse])
+async def update_current_profile(user_data: UserUpdate, current_user: UserResponse = Depends(get_current_user), db: AsyncSession = Depends(get_db)) -> StandardResponse[UserResponse | None]:
     user = await user_service.update_user(db, str(current_user.id), user_data)
     if not user:
         raise HTTPException(
