@@ -1,29 +1,81 @@
 $top-nav-height: 10%;
 
-.left-navigation {
-  width: 20%;             // takes 20% of the screen
-  height: 100vh;          // full screen height
-  background-color: #f8f9fa;
+.left-nav {
+  width: 15%;
+  height: calc(100vh - $top-nav-height);
   padding: 1rem;
-
+  transition: width 0.25s ease;
+  z-index: 500;
+  margin-top: $top-nav-height;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;            // spacing between buttons
-
-  position: fixed;        // keep it on the left side
-  top: 0;
-  left: 0;
+  flex: 0 0 auto;
+  align-self: stretch;
   justify-content: center;
-  z-index: 500;
+  background-color: #f8f9fa;
 
-  // Style for the MUI Buttons
-  button {
-    justify-content: flex-start;  // align icon + text left
-    text-transform: none;         // disable uppercase
+  &.collapsed {
+    width: 5%;
+    .label {
+      opacity: 0;
+      width: 0;
+    }
+  }
+
+  .top-section {
+    display: flex;
+    justify-content: left;
+    align-items: center;
+    margin-bottom: 1rem;
+
+    .collapse-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 1.2rem;
+      padding: 0.5rem;
+      color: #6b7280;
+    }
+  }
+
+  .nav-menu {
+    display: flex;
+    flex-grow: 1;
+    justify-content: center;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: transparent;
+    cursor: pointer;
     font-size: 1rem;
 
-    svg {
-      margin-right: 1rem;          // spacing between icon and text
+    .icon {
+      font-size: 1.5rem;
+      color: #60a5fa;
+    }
+
+    .label {
+      opacity: 1;
+      width: auto;
+      overflow: hidden;
+      white-space: nowrap;
+      transition: opacity 0.15s ease, width 0.25s ease;
+    }
+
+    &.active {
+      .icon {
+        color: #2563eb;
+      }
+    }
+
+    &:hover {
+      background: #f4f7fb;
     }
   }
 }
