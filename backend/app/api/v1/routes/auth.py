@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status
 
-from app.schemas.user import UserLogin, UserResponse, UserCreate, TokenResponse
+from app.schemas.user import UserLogin, UserResponse, UserCreate, TokenResponse, UserUpdate
 from app.core.db import get_db, AsyncSession
 from fastapi import Depends
 from app.services.user_service import UserService
@@ -8,8 +8,6 @@ from app.core.security import create_access_token
 from app.schemas.common import StandardResponse, ok
 from app.core.config import settings
 from datetime import timedelta
-from app.api.v1.deps import get_current_user
-from app.models.user import User
 
 router = APIRouter()
 user_service = UserService()
@@ -51,7 +49,3 @@ async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)) ->
             detail=str(e),
         )
     
-
-@router.get("/me", response_model=StandardResponse[UserResponse])
-async def get_user_info(current_user: User = Depends(get_current_user)) -> StandardResponse[UserResponse | None]:
-    return ok(UserResponse.model_validate(current_user))
