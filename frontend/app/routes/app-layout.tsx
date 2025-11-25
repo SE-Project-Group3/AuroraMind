@@ -4,7 +4,7 @@ import {
     TopNavigation,
     LeftNavigation,
 } from "./navigation/navigation"; // 用相对路径更稳
-import "./home.scss";
+import "./dashboardPage/dashboard.scss";
 
 export default function AppLayout() {
     return (

@@ -1,5 +1,5 @@
-import type { Route } from "./+types/home";
-import "./home.scss"
+import type { Route } from "../../../.react-router/types/app/routes/+types";
+import "./dashboard.scss"
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -8,7 +8,7 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
-export default function Home() {
+export default function Dashboard() {
   return <div>
     <div className="layout">
     </div>

@@ -13,8 +13,8 @@ export default [
         file: "routes/app-layout.tsx",
         children: [
             {
-                index: true,                     // /app -> routes/home.tsx
-                file: "routes/home.tsx",
+                index: true,                     // /app -> routes/dashboard.tsx
+                file: "routes/dashboardPage/dashboard.tsx",
             },
             {
                 path: "goals",
