@@ -3,16 +3,16 @@ from fastapi import Depends, HTTPException, status
 
 from app.core.db import get_db, AsyncSession
 from app.core.security import verify_token
-from app.models.user import User
-from sqlalchemy import select, and_
-
+from app.schemas.user import UserResponse
+from app.services.user_service import UserService
 security = HTTPBearer()
+user_service = UserService()
 
 
 async def get_current_user(
         credentials: HTTPAuthorizationCredentials=Depends(security),
         db: AsyncSession=Depends(get_db),
-) -> User:
+) -> UserResponse:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -30,18 +30,7 @@ async def get_current_user(
         
 
 
-    result = await db .execute(
-        select(User).where(
-            and_(
-                User.username == username,
-                User.is_active.is_(True),
-                User.is_deleted.is_(False),
-            )
-        )
-    )
-
-    user = result.scalar_one_or_none()
-
+    user = await user_service.get_user_profile(db, username)
     if not user:
         raise credentials_exception
         
