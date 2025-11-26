@@ -1,0 +1,61 @@
+/* KnowledgeBase.scss */
+
+/* 自定义滚动条样式 - 只作用于带 .kb-scroll-area 的元素 */
+.kb-scroll-area {
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: #e5e7eb; /* Tailwind gray-200 */
+    border-radius: 10px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+
+  &:hover::-webkit-scrollbar-thumb {
+    background-color: #d1d5db; /* Tailwind gray-300 */
+  }
+}
+
+/* 文章排版样式 - 只作用于 .kb-article 下的内容 */
+.kb-article {
+  h1 {
+    font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+    font-size: 1.5rem; /* 24px */
+    font-weight: 500;
+    color: #1f2937; /* gray-800 */
+    margin-bottom: 1.5rem;
+  }
+
+  p {
+    font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+    font-size: 0.9375rem; /* 15px */
+    line-height: 1.75;
+    color: #4b5563; /* gray-600 */
+    margin-bottom: 1rem;
+  }
+
+  blockquote {
+    font-style: italic;
+    color: #6b7280; /* gray-500 */
+    border-left: 4px solid #fecaca; /* red-200 */
+    padding-left: 1rem;
+    margin: 1.5rem 0;
+    font-size: 0.875rem; /* 14px */
+  }
+
+  .highlight-note {
+    color: #f87171; /* red-400 */
+    font-size: 0.75rem; /* 12px */
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+    display: block;
+  }
+}
