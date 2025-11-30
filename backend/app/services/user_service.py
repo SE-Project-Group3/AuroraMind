@@ -121,9 +121,6 @@ class UserService:
                     raise ValueError("Email already exists")
                 user.email = user_data.email
             
-            if user_data.is_active is not None:
-                    user.is_active = user_data.is_active
-            
             if user_data.password:
                 user.hashed_password = get_hashed_password(user_data.password)
 

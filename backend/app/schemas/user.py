@@ -13,7 +13,6 @@ class UserCreate(UserBase):
 
 class UserUpdate(UserBase): 
     password: str | None = None
-    is_active: bool | None = None
 
 
 class UserResponse(UserBase):
