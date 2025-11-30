@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
+from sqlalchemy.sql import Select
 
 from app.models.user import User
 from app.schemas.user import UserCreate, UserLogin, UserUpdate, UserResponse
@@ -39,29 +40,27 @@ class UserService:
         
 
     async def get_user_by_id(self, db: AsyncSession, user_id: str) -> User | None:
-        user = await db.execute(
-            select(User).where(
-                and_(
-                    User.id == user_id,
-                    User.is_active == True,
-                    User.is_deleted == False,
-                )
+        stmt: Select[tuple[User]] = select(User).where(
+            and_(
+                User.id == user_id,
+                User.is_active.is_(True),
+                User.is_deleted.is_(False),
             )
         )
-        return user.scalar_one_or_none()
+        result = await db.execute(stmt)
+        return result.scalar_one_or_none()
 
 
     async def get_user_by_username(self, db: AsyncSession, username: str) -> User | None:
-        user = await db.execute(
-            select(User).where(
-                and_(
-                    User.username == username,
-                    User.is_active == True,
-                    User.is_deleted == False,
-                )
+        stmt: Select[tuple[User]] = select(User).where(
+            and_(
+                User.username == username,
+                User.is_active.is_(True),
+                User.is_deleted.is_(False),
             )
         )
-        return user.scalar_one_or_none()
+        result = await db.execute(stmt)
+        return result.scalar_one_or_none()
 
     async def get_user_profile(self, db: AsyncSession, username: str) -> UserResponse | None:
         cached = await cache_service.get_user(username)
@@ -76,16 +75,15 @@ class UserService:
 
 
     async def get_user_by_email(self, db: AsyncSession, email: str) -> User | None:
-        user = await db.execute(
-            select(User).where(
-                and_(
-                    User.email == email, 
-                    User.is_active == True, 
-                    User.is_deleted == False,
-                )
+        stmt: Select[tuple[User]] = select(User).where(
+            and_(
+                User.email == email,
+                User.is_active.is_(True),
+                User.is_deleted.is_(False),
             )
         )
-        return user.scalar_one_or_none()
+        result = await db.execute(stmt)
+        return result.scalar_one_or_none()
     
 
     async def user_login(self, db: AsyncSession, user_data: UserLogin) -> User | None:

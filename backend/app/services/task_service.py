@@ -1,0 +1,215 @@
+from __future__ import annotations
+
+import uuid
+from collections.abc import Sequence
+
+from sqlalchemy import and_, select
+from sqlalchemy.sql import Select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.task import Task
+from app.models.task_list import TaskList
+from app.schemas.task import TaskCreate, TaskUpdate
+from app.schemas.task_list import TaskListCreate, TaskListUpdate
+
+
+class TaskListService:
+    async def create_task_list(
+        self,
+        db: AsyncSession,
+        user_id: uuid.UUID,
+        task_list_data: TaskListCreate,
+    ) -> TaskList | None:
+        existing_task_list = await self.get_task_list_by_name(db, task_list_data.name, user_id)
+        if existing_task_list:
+            return None
+        
+        new_task_list = TaskList(
+            name=task_list_data.name,
+            user_id=user_id,
+        )
+        db.add(new_task_list)
+        await db.commit()
+        await db.refresh(new_task_list)
+        return new_task_list
+
+    async def list_task_lists(
+        self,
+        db: AsyncSession,
+        user_id: uuid.UUID,
+    ) -> Sequence[TaskList] | None:
+        stmt: Select[tuple[TaskList]] = select(TaskList).where(
+            and_(TaskList.user_id == user_id, TaskList.is_deleted.is_(False))
+        )
+        result = await db.execute(stmt)
+        return result.scalars().all()
+
+    async def get_task_list(
+        self,
+        db: AsyncSession,
+        task_list_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> TaskList | None:
+        stmt: Select[tuple[TaskList]] = select(TaskList).where(
+            and_(
+                TaskList.id == task_list_id,
+                TaskList.user_id == user_id,
+                TaskList.is_deleted.is_(False),
+            )
+        )
+        result = await db.execute(stmt)
+        return result.scalar_one_or_none()
+    
+    async def get_task_list_by_name(
+        self,
+        db: AsyncSession,
+        name: str,
+        user_id: uuid.UUID,
+    ) -> TaskList | None:
+        stmt: Select[tuple[TaskList]] = select(TaskList).where(
+            and_(TaskList.name == name, TaskList.user_id == user_id, TaskList.is_deleted.is_(False))
+        )
+        result = await db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def update_task_list(
+        self,
+        db: AsyncSession,
+        task_list_id: uuid.UUID,
+        user_id: uuid.UUID,
+        task_list_data: TaskListUpdate,
+    ) -> TaskList | None:
+        task_list = await self.get_task_list(db, task_list_id, user_id)
+        if not task_list:
+            return None
+
+        if task_list_data.name is not None:
+            task_list.name = task_list_data.name
+
+        await db.commit()
+        await db.refresh(task_list)
+        return task_list
+
+    async def delete_task_list(
+        self,
+        db: AsyncSession,
+        task_list_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> bool:
+        task_list = await self.get_task_list(db, task_list_id, user_id)
+        if not task_list:
+            return False
+
+        task_list.soft_delete()
+        await db.commit()
+        return True
+
+
+class TaskService:
+    def __init__(self) -> None:
+        self.task_list_service = TaskListService()
+
+    async def create_task(
+        self,
+        db: AsyncSession,
+        user_id: uuid.UUID,
+        task_data: TaskCreate,
+    ) -> Task:
+        task_list = await self.task_list_service.get_task_list(
+            db, task_data.task_list_id, user_id
+        )
+        if not task_list:
+            msg = "Task list not found for the current user"
+            raise ValueError(msg)
+
+        new_task = Task(
+            name=task_data.name,
+            is_completed=task_data.is_completed,
+            user_id=user_id,
+            task_list_id=task_data.task_list_id,
+            end_date=task_data.end_date,
+        )
+        if task_data.start_date:
+            new_task.start_date = task_data.start_date
+
+        db.add(new_task)
+        await db.commit()
+        await db.refresh(new_task)
+        return new_task
+
+    async def list_tasks(
+        self,
+        db: AsyncSession,
+        user_id: uuid.UUID,
+        task_list_id: uuid.UUID | None = None,
+    ) -> Sequence[Task]:
+        stmt: Select[tuple[Task]] = select(Task).where(
+            and_(Task.user_id == user_id, Task.is_deleted.is_(False))
+        )
+        if task_list_id:
+            stmt = stmt.where(Task.task_list_id == task_list_id)
+
+        result = await db.execute(stmt)
+        return result.scalars().all()
+
+    async def get_task(
+        self,
+        db: AsyncSession,
+        task_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> Task | None:
+        stmt: Select[tuple[Task]] = select(Task).where(
+            and_(
+                Task.id == task_id,
+                Task.user_id == user_id,
+                Task.is_deleted.is_(False),
+            )
+        )
+        result = await db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def update_task(
+        self,
+        db: AsyncSession,
+        task_id: uuid.UUID,
+        user_id: uuid.UUID,
+        task_data: TaskUpdate,
+    ) -> Task | None:
+        task = await self.get_task(db, task_id, user_id)
+        if not task:
+            return None
+
+        if task_data.name is not None:
+            task.name = task_data.name
+        if task_data.is_completed is not None:
+            task.is_completed = task_data.is_completed
+        if task_data.start_date is not None:
+            task.start_date = task_data.start_date
+        if task_data.end_date is not None:
+            task.end_date = task_data.end_date
+        if task_data.task_list_id is not None:
+            task_list = await self.task_list_service.get_task_list(
+                db, task_data.task_list_id, user_id
+            )
+            if not task_list:
+                msg = "Target task list not found for the current user"
+                raise ValueError(msg)
+            task.task_list_id = task_data.task_list_id
+
+        await db.commit()
+        await db.refresh(task)
+        return task
+
+    async def delete_task(
+        self,
+        db: AsyncSession,
+        task_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> bool:
+        task = await self.get_task(db, task_id, user_id)
+        if not task:
+            return False
+
+        task.soft_delete()
+        await db.commit()
+        return True
