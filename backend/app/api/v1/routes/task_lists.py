@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.api.v1.deps import get_current_user
 from app.core.db import AsyncSession, get_db
@@ -21,8 +21,9 @@ task_list_service = TaskListService()
 async def list_task_lists(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    goal_id: uuid.UUID | None = Query(default=None),
 ) -> StandardResponse[list[TaskListResponse] | None]:
-    task_lists = await task_list_service.list_task_lists(db, current_user.id)
+    task_lists = await task_list_service.list_task_lists(db, current_user.id, goal_id)
     if not task_lists:
         return ok([])
     return ok([TaskListResponse.model_validate(task_list) for task_list in task_lists])
@@ -38,15 +39,21 @@ async def create_task_list(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> StandardResponse[TaskListResponse | None]:
-    task_list = await task_list_service.create_task_list(
-        db, current_user.id, task_list_data
-    )
-    if not task_list:
+    try:
+        task_list = await task_list_service.create_task_list(
+            db, current_user.id, task_list_data
+        )
+        if not task_list:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Task list already exists",
+            )
+        return ok(TaskListResponse.model_validate(task_list))
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Task list already exists",
-        )
-    return ok(TaskListResponse.model_validate(task_list))
+            detail=str(exc),
+        ) from exc
 
 
 @router.get(
@@ -76,9 +83,15 @@ async def update_task_list(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> StandardResponse[TaskListResponse | None]:
-    task_list = await task_list_service.update_task_list(
-        db, task_list_id, current_user.id, task_list_data
-    )
+    try:
+        task_list = await task_list_service.update_task_list(
+            db, task_list_id, current_user.id, task_list_data
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
     if not task_list:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task list not found")
     return ok(TaskListResponse.model_validate(task_list))
@@ -97,4 +110,3 @@ async def delete_task_list(
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task list not found")
     return ok(True)
-

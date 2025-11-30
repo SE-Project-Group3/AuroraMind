@@ -9,11 +9,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.task import Task
 from app.models.task_list import TaskList
+from app.services.goal_service import GoalService
 from app.schemas.task import TaskCreate, TaskUpdate
 from app.schemas.task_list import TaskListCreate, TaskListUpdate
 
 
 class TaskListService:
+    def __init__(self) -> None:
+        self.goal_service = GoalService()
+
     async def create_task_list(
         self,
         db: AsyncSession,
@@ -23,10 +27,17 @@ class TaskListService:
         existing_task_list = await self.get_task_list_by_name(db, task_list_data.name, user_id)
         if existing_task_list:
             return None
-        
+
+        if task_list_data.goal_id:
+            goal = await self.goal_service.get_goal(db, task_list_data.goal_id, user_id)
+            if not goal:
+                msg = "Goal not found for the current user"
+                raise ValueError(msg)
+
         new_task_list = TaskList(
             name=task_list_data.name,
             user_id=user_id,
+            goal_id=task_list_data.goal_id,
         )
         db.add(new_task_list)
         await db.commit()
@@ -37,10 +48,13 @@ class TaskListService:
         self,
         db: AsyncSession,
         user_id: uuid.UUID,
+        goal_id: uuid.UUID | None = None,
     ) -> Sequence[TaskList] | None:
         stmt: Select[tuple[TaskList]] = select(TaskList).where(
             and_(TaskList.user_id == user_id, TaskList.is_deleted.is_(False))
         )
+        if goal_id:
+            stmt = stmt.where(TaskList.goal_id == goal_id)
         result = await db.execute(stmt)
         return result.scalars().all()
 
@@ -85,6 +99,14 @@ class TaskListService:
 
         if task_list_data.name is not None:
             task_list.name = task_list_data.name
+
+        if "goal_id" in task_list_data.model_fields_set:
+            if task_list_data.goal_id is not None:
+                goal = await self.goal_service.get_goal(db, task_list_data.goal_id, user_id)
+                if not goal:
+                    msg = "Goal not found for the current user"
+                    raise ValueError(msg)
+            task_list.goal_id = task_list_data.goal_id
 
         await db.commit()
         await db.refresh(task_list)

@@ -16,3 +16,9 @@ class TaskList(BaseModel):
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, comment="user id"
     )
+    goal_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("goals.id"),
+        nullable=True,
+        comment="linked goal id",
+    )
