@@ -47,8 +47,9 @@ venv.bak/
 .DS_Store
 Thumbs.db
 
-# Agent documentation
+# AI documentation
 AGENTS.md
+.cursor/
 
 # Log file
 *.log

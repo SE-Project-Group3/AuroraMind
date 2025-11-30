@@ -34,9 +34,23 @@
 
 4. **Configure environment variables**
    - Copy `backend/.env.example` to `backend/.env`
+   - Ensure the `POSTGRES_*` values in `.env` match the defaults in `docker-compose.yml` (`aurora` / `password` / `auroramind`) so Alembic can connect to the database.
 
-4. **Start the API**
+5. **Start infrastructure (Postgres + Redis)**
+   ```bash
+   docker compose up -d
+   ```
+   Run this from the `backend/` directory with Docker Desktop (or another compatible runtime) installed. 
+
+6. **Initialize the database / run Alembic migrations**
+   ```bash
+   alembic upgrade head
+   ```
+   Execute this inside the activated virtual environment. The first run creates all tables; subsequent runs keep the schema up to date.
+
+7. **Start the API**
    ```bash
    uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 8080
    ```
    The server listens on `http://127.0.0.1:8080` by default.
+   
