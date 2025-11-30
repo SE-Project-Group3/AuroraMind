@@ -4,7 +4,7 @@ export default [
     // 欢迎页：没有 sidebar 的单独页面
     {
         path: "/",
-        file: "routes/welcome/welcome.tsx",  // 注意这里最好也带 routes/ 前缀
+        file: "routes/loginPage/login.tsx",  // 注意这里最好也带 routes/ 前缀
     },
 
     // 主应用布局
