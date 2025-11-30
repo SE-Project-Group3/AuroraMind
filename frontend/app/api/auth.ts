@@ -1,6 +1,6 @@
 // api/auth.ts
 import axios from "axios";
-const API_BASE = "http://localhost:8000"; // 换成你后端实际地址
+const API_BASE = "http://127.0.0.1:8080";
 
 export interface LoginRequest {
     username: string;

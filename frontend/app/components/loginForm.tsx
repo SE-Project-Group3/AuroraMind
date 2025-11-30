@@ -1,6 +1,6 @@
 // app/components/auth/LoginForm.tsx
 import { useState } from "react";
-import { Eye, EyeOff } from "lucide-react"; // 你原来那两个图标
+import { Eye, EyeOff } from "lucide-react";
 import { login } from "../api/auth";
 
 interface LoginFormProps {
@@ -8,7 +8,8 @@ interface LoginFormProps {
 }
 
 export function LoginForm({ onSuccess }: LoginFormProps) {
-    const [email, setEmail] = useState("");
+    // const [email, setEmail] = useState("");
+    const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -20,7 +21,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
         setError(null);
         setLoading(true);
         try {
-            const res = await login({ username: email, password });
+            const res = await login({ username: username, password });
 
             if (res.code === 0 && res.data) {
                 const { access_token, token_type } = res.data;
@@ -34,7 +35,22 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
                 setError(res.message || "Login failed");
             }
         } catch (err: any) {
-            setError("Network error, please try again");
+            console.error("Login error:", err);
+
+            // axios 有响应，但状态码不是 2xx，比如 401/422/500
+            if (err.response) {
+                const backendMessage =
+                    err.response.data?.message ||
+                    err.response.data?.detail ||
+                    `Request failed with status ${err.response.status}`;
+                setError(backendMessage);
+            } else if (err.request) {
+                // 请求发出去了，但收不到响应（网络问题 / CORS 被拦）
+                setError("Cannot reach server. Please check backend / CORS.");
+            } else {
+                // 其他错误（代码写错之类）
+                setError(err.message || "Unknown error");
+            }
         } finally {
             setLoading(false);
         }
@@ -50,17 +66,17 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
 
             {/* Inputs */}
             <form className="space-y-5" onSubmit={handleSubmit}>
-                {/* Email */}
+                {/* Username */}
                 <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1 ml-1" htmlFor="email">
-                        Email
+                    <label className="block text-xs font-bold text-gray-700 mb-1 ml-1" htmlFor="username">
+                        Username
                     </label>
                     <input
-                        type="email"
-                        id="email"
-                        placeholder="Enter your email"
-                        value={email}
-                        onChange={e => setEmail(e.target.value)}
+                        type="username"
+                        id="username"
+                        placeholder="Enter your username"
+                        value={username}
+                        onChange={e => setUsername(e.target.value)}
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white text-sm transition-all"
                     />
                 </div>
