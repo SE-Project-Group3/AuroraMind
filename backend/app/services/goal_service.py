@@ -12,13 +12,6 @@ from app.schemas.goal import GoalCreate, GoalUpdate
 
 
 class GoalService:
-    async def get_goal(self, db: AsyncSession, goal_id: uuid.UUID, user_id: uuid.UUID) -> Goal | None:
-        stmt: Select[tuple[Goal]] = select(Goal).where(
-            and_(Goal.id == goal_id, Goal.user_id == user_id, Goal.is_deleted.is_(False))
-        )
-        result = await db.execute(stmt)
-        return result.scalar_one_or_none()
-
     async def _generate_default_name(
         self, db: AsyncSession, user_id: uuid.UUID
     ) -> str:
