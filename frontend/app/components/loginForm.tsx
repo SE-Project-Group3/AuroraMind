@@ -4,7 +4,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { login } from "../api/auth";
 
 interface LoginFormProps {
-    onSuccess?: () => void; // 登录成功后，外层想干嘛（跳转等）可以传进来
+    onSuccess?: () => void; // 登录成功后，外层想跳转可以传进来
 }
 
 export function LoginForm({ onSuccess }: LoginFormProps) {
@@ -18,18 +18,22 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     // username = email
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        console.log("handleSubmit triggered");
+
         setError(null);
         setLoading(true);
         try {
             const res = await login({ username: username, password });
+            console.log("login raw response:", res);
 
-            if (res.code === 0 && res.data) {
+            if (res.data?.access_token && res.data?.token_type) {
                 const { access_token, token_type } = res.data;
 
                 // 保存 token, 没封装
                 localStorage.setItem("access_token", access_token);
                 localStorage.setItem("token_type", token_type);
 
+                console.log("login success, will call onSuccess");
                 onSuccess?.();
             } else {
                 setError(res.message || "Login failed");
