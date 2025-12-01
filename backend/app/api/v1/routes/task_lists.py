@@ -8,6 +8,7 @@ from app.schemas.common import StandardResponse, ok
 from app.schemas.task_list import (
     TaskListCreate,
     TaskListResponse,
+    TaskListGoalUpdate,
     TaskListUpdate,
 )
 from app.schemas.user import UserResponse
@@ -86,6 +87,30 @@ async def update_task_list(
     try:
         task_list = await task_list_service.update_task_list(
             db, task_list_id, current_user.id, task_list_data
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    if not task_list:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task list not found")
+    return ok(TaskListResponse.model_validate(task_list))
+
+
+@router.patch(
+    "/{task_list_id}/goal",
+    response_model=StandardResponse[TaskListResponse],
+)
+async def set_task_list_goal(
+    task_list_id: uuid.UUID,
+    goal_data: TaskListGoalUpdate,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> StandardResponse[TaskListResponse | None]:
+    try:
+        task_list = await task_list_service.set_task_list_goal(
+            db, task_list_id, current_user.id, goal_data
         )
     except ValueError as exc:
         raise HTTPException(

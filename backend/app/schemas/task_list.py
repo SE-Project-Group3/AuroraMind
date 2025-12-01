@@ -18,6 +18,10 @@ class TaskListUpdate(BaseModel):
     goal_id: uuid.UUID | None = None
 
 
+class TaskListGoalUpdate(BaseModel):
+    goal_id: uuid.UUID | None = None
+
+
 class TaskListResponse(TaskListBase):
     id: uuid.UUID
     user_id: uuid.UUID
