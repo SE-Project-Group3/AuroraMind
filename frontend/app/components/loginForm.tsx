@@ -138,13 +138,6 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
                 </div>
             </div>
 
-            {/* Footer */}
-            <p className="text-center text-xs text-gray-500 mt-8">
-                Don't have an account?{" "}
-                <a href="#" className="text-blue-500 font-bold hover:underline">
-                    Sign Up
-                </a>
-            </p>
         </div>
     );
 }
