@@ -12,10 +12,8 @@ from app.schemas.goal import GoalCreate, GoalUpdate
 
 
 class GoalService:
-    async def _generate_default_name(
-        self, db: AsyncSession, user_id: uuid.UUID
-    ) -> str:
-        stmt: Select[tuple[Goal]] = select(Goal.name).where(
+    async def _generate_default_name(self, db: AsyncSession, user_id: uuid.UUID) -> str:
+        stmt: Select[tuple[str]] = select(Goal.name).where(
             and_(Goal.user_id == user_id, Goal.is_deleted.is_(False))
         )
         result = await db.execute(stmt)
@@ -74,7 +72,9 @@ class GoalService:
         user_id: uuid.UUID,
     ) -> Goal | None:
         stmt: Select[tuple[Goal]] = select(Goal).where(
-            and_(Goal.id == goal_id, Goal.user_id == user_id, Goal.is_deleted.is_(False))
+            and_(
+                Goal.id == goal_id, Goal.user_id == user_id, Goal.is_deleted.is_(False)
+            )
         )
         result = await db.execute(stmt)
         return result.scalar_one_or_none()

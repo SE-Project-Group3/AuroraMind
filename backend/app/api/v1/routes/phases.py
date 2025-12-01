@@ -32,6 +32,38 @@ async def create_phase(
     return ok(PhaseResponse.model_validate(phase))
 
 
+@router.get(
+    "",
+    response_model=StandardResponse[list[PhaseResponse]],
+)
+async def list_phases(
+    goal_id: uuid.UUID,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> StandardResponse[list[PhaseResponse]]:
+    goal = await phase_service.goal_service.get_goal(db, goal_id, current_user.id)
+    if not goal:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Goal not found")
+
+    phases = await phase_service.list_phases(db, goal_id, current_user.id)
+    return ok([PhaseResponse.model_validate(phase) for phase in phases])
+
+
+@router.get(
+    "/{phase_id}",
+    response_model=StandardResponse[PhaseResponse],
+)
+async def get_phase(
+    phase_id: uuid.UUID,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> StandardResponse[PhaseResponse | None]:
+    phase = await phase_service.get_phase(db, phase_id, current_user.id)
+    if not phase:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Phase not found")
+    return ok(PhaseResponse.model_validate(phase))
+
+
 @router.put(
     "/{phase_id}",
     response_model=StandardResponse[PhaseResponse],
