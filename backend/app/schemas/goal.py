@@ -9,7 +9,7 @@ class GoalBase(BaseModel):
 
 
 class GoalCreate(BaseModel):
-    name: str | None = Field(None, min_length=1, max_length=255)
+    name: str | None = Field(None, max_length=255)
     description: str | None = Field(None, max_length=1024)
 
 
