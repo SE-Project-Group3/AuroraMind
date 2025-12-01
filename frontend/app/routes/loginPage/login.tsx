@@ -2,6 +2,8 @@ import type { Route } from "./+types/login";
 import React, { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { login } from "../../api/auth";
+// import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 
 import { LoginForm } from "../../components/loginForm"; // 路径按你的项目结构调整
 
@@ -18,7 +20,10 @@ export async function loader({}: Route.LoaderArgs) {
 }
 
 export default function LoginPage() {
-    // const [showPassword, setShowPassword] = useState(false);
+    const navigate = useNavigate();
+
+    console.log("LoginPage rendered!");
+
 
     return (
         // ================= 1. frame =================
@@ -41,8 +46,7 @@ export default function LoginPage() {
                     {/* LoginForm Component */}
                     <LoginForm
                         onSuccess={() => {
-                            // 登录成功后你想做什么，比如跳转 dashboard
-                            // navigate("/dashboard") 之类的
+                            navigate("/app")
                             console.log("login success!");
                         }}
                     />
