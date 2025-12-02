@@ -1,5 +1,5 @@
 import "./todolist.scss";
-import { getLists, getTasks } from "../../api/tasks"
+import { getLists, getTasks, updateTask, type Task } from "../../api/tasks"
 import { useState, useEffect } from 'react';
 import type { Route } from "./+types/todolist";
 
@@ -14,40 +14,45 @@ export const handle = {
     clientLoader: true,
 };
 
-// loader
-export async function loader({}: Route.LoaderArgs) {
-    return null;
-}
-
 export async function clientLoader({}: Route.LoaderArgs) {
-    return null;
+    const lists = await getLists();
+    const tasks = [];
+    for (const item of lists) {
+        tasks.push(await getTasks(item.id));
+    }
+    return {lists: lists, tasks: tasks};
+}
+clientLoader.hydrate = true;
+
+export function HydrateFallback() {
+  return <div>Loading...</div>;
 }
 
-export default function TodoView() {
+export default function TodoView({loaderData}: Route.ComponentProps) {
+    const [lists, setLists] = useState(loaderData.lists);
+    const [tasks, setTasks] = useState(loaderData.tasks.flat());
+    console.log(tasks);
 
-    const [lists, setLists] = useState<any[] | null>(null);
-    const [tasks, setTasks] = useState<any[] | null>(null);
+    const handleTaskToggle = async (task: Task) => {
+        const newStatus = !task.is_completed;
+        const taskToUpdate = { ...task, is_completed: newStatus };
 
-    useEffect(() => {
-        async function fetchData() {
-            const listsResp = await getLists();
-            const tasksResp = [];
-            for (const item of listsResp) {
-                const response = await getTasks(item.id);
-                tasksResp.push(response);
-            };
-            setLists(listsResp);
-            setTasks(tasksResp.flat());
-            console.log(listsResp);
-            console.log(tasksResp.flat());
+        const updatedTaskFromApi = await updateTask(taskToUpdate);
+        if (updatedTaskFromApi) {
+            setTasks((prevTasks) =>
+                prevTasks.map((t) =>
+                    t.id === updatedTaskFromApi.id ? updatedTaskFromApi : t
+                )
+            );
+        } else {
+            console.log("Failed to update task");
         }
-        fetchData();
-    }, []);
+    };
 
     return (
         <div className="todo-view">
             {lists && tasks && lists.map((list, index) => {
-                let taskItems = tasks.filter((item) => {item.task_list_id === list.id})
+                let taskItems = tasks.filter((item) => item.task_list_id === list.id)
 
                 console.log(taskItems);
                 const uncompleted = taskItems.filter(t => !t.is_completed);
@@ -57,10 +62,9 @@ export default function TodoView() {
                     <div className="list-column" key={list.id}>
                         <h2>{list.name}</h2>
 
-                        <TodoList title="To do" todos={uncompleted} />
-                        <TodoList title="Completed" todos={completed} />
-
-                        <button className="add-task">+ Add a new task</button>
+                        <TodoList title="To do" tasks={uncompleted} onToggleTask={handleTaskToggle}/>
+                        <TodoList title="Completed" tasks={completed} onToggleTask={handleTaskToggle}/>
+                        {index === 0 && <button className="add-task">+ Add a new list</button>}
                     </div>
                 );
         })}
@@ -70,42 +74,41 @@ export default function TodoView() {
 
 export type TodoListProps = {
     title: string;
-    todos: TodoItemProps[];
-    onToggle?: (index: number) => void;
+    tasks: Task[];
+    onToggleTask: (task: Task) => void;
 };
 
-export function TodoList({ title, todos, onToggle }: TodoListProps) {
+export function TodoList({ title, tasks, onToggleTask }: TodoListProps) {
     return (
-        <div className="list-column">
-            <h2 className="section-title">{title}</h2>
+    <div className="list-column">
+        <h2 className="section-title">{title}</h2>
 
-            <ul className="task-list">
-                {todos.map((todo, index) => (
-                    <TodoItem
-                        key={index}
-                        {...todo}
-                        onToggle={() => onToggle?.(index)}
-                    />
-                ))}
-            </ul>
-            <button className="add-task">+ Add a new task</button>
-        </div>
+        <ul className="task-list">
+            {tasks.map((task, index) => (
+                <TodoItem
+                    key={index}
+                    task={task}
+                    onToggle={() => onToggleTask(task)}
+                />
+            ))}
+        </ul>
+        {title === "To do" && <button className="add-task">+ Add a new task</button>}
+    </div>
     );
 }
 
 export type TodoItemProps = {
-    taskName: string;
-    taskDate: string;
-    checked?: boolean;
-    onToggle?: () => void;
-};
+    task: Task;
+    onToggle: () => void;
+}
 
-export function TodoItem({ taskName, taskDate, checked, onToggle }: TodoItemProps) {
+export function TodoItem({ task, onToggle }: TodoItemProps) {
+    const formattedDate = task.end_date ? task.end_date.split('T')[0] : "";
     return (
-        <li className={checked ? "completed-task" : "todo-task"}>
-            <input type="checkbox" checked={checked} onChange={onToggle} />
-            <span className="task-description"> {taskName} </span>
-            <span className="task-date">{taskDate}</span>
+        <li className={task.is_completed ? "completed-task" : "todo-task"}>
+            <input type="checkbox" checked={task.is_completed} onChange={onToggle} />
+            <span className="task-description"> {task.name} </span>
+            <span className="task-date">{formattedDate}</span>
         </li>
     );
 }
