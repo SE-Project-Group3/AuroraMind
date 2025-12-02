@@ -55,7 +55,6 @@ class PhaseService:
         phase = Phase(
             goal_id=phase_data.goal_id,
             name=name,
-            description=phase_data.description,
         )
         db.add(phase)
         await db.commit()
@@ -75,8 +74,6 @@ class PhaseService:
 
         if phase_data.name is not None:
             phase.name = phase_data.name
-        if "description" in phase_data.model_fields_set:
-            phase.description = phase_data.description
 
         await db.commit()
         await db.refresh(phase)
