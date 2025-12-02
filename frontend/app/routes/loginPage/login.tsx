@@ -1,9 +1,9 @@
 import type { Route } from "./+types/login";
 import React, { useState } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
-import { login } from "../../api/auth";
-
-import { LoginForm } from "../../components/loginForm"; // 路径按你的项目结构调整
+// import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
+import { LoginForm } from "../../components/loginForm";
+import { RegisterForm } from "../../components/registerForm";
 
 export function meta({}: Route.MetaArgs) {
     return [
@@ -18,7 +18,11 @@ export async function loader({}: Route.LoaderArgs) {
 }
 
 export default function LoginPage() {
-    // const [showPassword, setShowPassword] = useState(false);
+    const navigate = useNavigate();
+    const [showRegister, setShowRegister] = useState(false);
+
+    console.log("LoginPage rendered!");
+
 
     return (
         // ================= 1. frame =================
@@ -41,11 +45,22 @@ export default function LoginPage() {
                     {/* LoginForm Component */}
                     <LoginForm
                         onSuccess={() => {
-                            // 登录成功后你想做什么，比如跳转 dashboard
-                            // navigate("/dashboard") 之类的
+                            navigate("/app")
                             console.log("login success!");
                         }}
                     />
+
+                    <p className="text-center text-xs text-gray-500 mt-8">
+                        Don't have an account?{" "}
+                        <button
+                            type="button"
+                            onClick={() => setShowRegister(true)}
+                            className="text-blue-500 font-bold hover:underline"
+                        >
+                            Sign Up
+                        </button>
+                    </p>
+
                 </div>
 
                 {/* === Right Side: Branding Section === */}
@@ -69,6 +84,30 @@ export default function LoginPage() {
                         </p>
                     </div>
                 </div>
+
+                {/* ============== 注册弹窗 ============== */}
+                {showRegister && (
+                    <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/40">
+                        <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8 relative">
+                            {/* 关闭按钮 */}
+                            <button
+                                type="button"
+                                onClick={() => setShowRegister(false)}
+                                className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 text-xl"
+                            >
+                                ×
+                            </button>
+
+                            <RegisterForm
+                                onSuccess={() => {
+                                    // 注册成功后，关闭弹窗，也可以在这里顺便自动填充用户名之类的
+                                    setShowRegister(false);
+                                }}
+                            />
+                        </div>
+                    </div>
+                )}
+
             </div>
         </div>
     );

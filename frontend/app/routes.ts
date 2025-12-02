@@ -1,10 +1,10 @@
 import { type RouteConfig } from "@react-router/dev/routes";
 
 export default [
-    // 欢迎页：没有 sidebar 的单独页面
+    // 登录页
     {
         path: "/",
-        file: "routes/loginPage/login.tsx",  // 注意这里最好也带 routes/ 前缀
+        file: "routes/loginPage/login.tsx",  // 这里最好也带 routes/ 前缀
     },
 
     // 主应用布局
@@ -34,7 +34,7 @@ export default [
             },
             {
                 path: "profile",
-                file: "routes/profilePage/profile.tsx", // 这行你原来写的是 summary.tsx，注意一下
+                file: "routes/profilePage/profile.tsx",
             },
         ],
     },
