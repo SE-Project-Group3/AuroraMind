@@ -11,7 +11,7 @@ from app.models.task import Task
 from app.models.task_list import TaskList
 from app.services.goal_service import GoalService
 from app.schemas.task import TaskCreate, TaskUpdate
-from app.schemas.task_list import TaskListCreate, TaskListGoalUpdate, TaskListUpdate
+from app.schemas.task_list import TaskListCreate, TaskListUpdate
 
 
 class TaskListService:
@@ -125,28 +125,6 @@ class TaskListService:
         task_list.soft_delete()
         await db.commit()
         return True
-
-    async def set_task_list_goal(
-        self,
-        db: AsyncSession,
-        task_list_id: uuid.UUID,
-        user_id: uuid.UUID,
-        goal_data: TaskListGoalUpdate,
-    ) -> TaskList | None:
-        task_list = await self.get_task_list(db, task_list_id, user_id)
-        if not task_list:
-            return None
-
-        if goal_data.goal_id is not None:
-            goal = await self.goal_service.get_goal(db, goal_data.goal_id, user_id)
-            if not goal:
-                msg = "Goal not found for the current user"
-                raise ValueError(msg)
-
-        task_list.goal_id = goal_data.goal_id
-        await db.commit()
-        await db.refresh(task_list)
-        return task_list
 
 
 class TaskService:
