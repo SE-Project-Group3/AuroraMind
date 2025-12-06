@@ -3,12 +3,9 @@ import Button from '@mui/material/Button'
 import TextField from '@mui/material/TextField'
 import { getLists, getTasks, updateTask, deleteTask, createTask, createList, updateList, deleteList, type Task, type TaskList } from "../../api/tasks"
 import { FaCheck, FaXmark, FaTrashCan } from "react-icons/fa6";
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { useState, useEffect } from 'react';
 import type { Route } from "./+types/todolist";
-import { DateField } from "@mui/x-date-pickers/DateField";
-import { format } from 'date-fns';
+import { TaskItem } from "~/components/taskItem";
 
 export function meta({}: Route.MetaArgs) {
     return [
@@ -149,13 +146,13 @@ export default function TodoView({loaderData}: Route.ComponentProps) {
     };
 
     const handleListDelete = async (listId: string) => {
-        // Confirmation is usually good for deleting lists
+        // TODO: replaced by a modal later
+        // TODO: need to verify if all tasks are completed/deleted
         if (!confirm("Are you sure you want to delete this list and all its tasks?")) return;
 
         const success = await deleteList(listId); //
         if (success) {
             setLists(prev => prev.filter(l => l.id !== listId));
-            // Also remove tasks associated with this list from view
             setTasks(prev => prev.filter(t => t.task_list_id !== listId));
         } else {
             alert("Failed to delete list");
@@ -336,7 +333,7 @@ export function TodoList({ title, tasks, listId, onToggle, onUpdate, onDelete, o
 
         <ul className="task-list">
             {tasks.map((task, index) => (
-                <TodoItem
+                <TaskItem
                         key={task.id} 
                         task={task}
                         onToggle={() => onToggle(task)}
@@ -347,109 +344,5 @@ export function TodoList({ title, tasks, listId, onToggle, onUpdate, onDelete, o
         </ul>
         {title === "To do" && <button className="add-task" onClick={() => onAdd(listId)}>+ Add a new task</button>}
     </div>
-    );
-}
-
-export type TodoItemProps = {
-    task: Task;
-    onToggle: () => void;
-    onUpdate: (task: Task, newName: string, newDate: string) => void;
-    onDelete: (taskId: string) => void;
-}
-
-export function TodoItem({ task, onToggle, onUpdate, onDelete }: TodoItemProps) {
-    const isTemp = task.id.startsWith('temp-');
-    const [isEditing, setIsEditing] = useState(isTemp);
-    const [editName, setEditName] = useState(task.name);
-    const [editDate, setEditDate] = useState<Date | null>(
-        task.end_date ? new Date(task.end_date) : null
-    );
-
-    const handleSave = () => {
-        const dateString = editDate ? format(editDate, 'yyyy-MM-dd') : "";
-        onUpdate(task, editName, dateString);
-        setIsEditing(false);
-    };
-
-    const handleCancel = () => {
-        if (isTemp) {
-            onDelete(task.id);
-        } else {
-            setEditName(task.name);
-            setEditDate(task.end_date ? new Date(task.end_date) : null);
-            setIsEditing(false);
-        }
-    };
-
-    // VIEW MODE
-    if (!isEditing) {
-        return (
-            <li className={task.is_completed ? "completed-task" : "todo-task"}>
-                <input 
-                    type="checkbox" 
-                    checked={task.is_completed} 
-                    onChange={onToggle} 
-                />
-                <div 
-                    className="task-content" 
-                    onClick={() => setIsEditing(true)} 
-                >
-                    <span className="task-description"> {task.name} </span>
-                    <span className="task-date">
-                        {task.end_date ? task.end_date.split('T')[0] : ""}
-                    </span>
-                </div>
-            </li>
-        );
-    }
-
-    // EDIT MODE
-    return (
-        <li className="todo-task editing">
-            <div className="edit-inputs">
-                <TextField 
-                    variant="outlined"
-                    size="small"
-                    value={editName} 
-                    onChange={(e) => setEditName(e.target.value)}
-                    className="edit-input-text" // SCSS sets flex: 1 here
-                />
-                <LocalizationProvider dateAdapter={AdapterDateFns}>
-                    <DateField
-                        value={editDate}
-                        onChange={(newValue) => setEditDate(newValue)}
-                        format="yyyy-MM-dd"
-                        size="small"
-                        className="edit-input-date"
-                    />
-                </LocalizationProvider>
-            </div>
-            <div className="edit-actions">
-                <Button 
-                    onClick={handleSave} 
-                    variant="contained"
-                    size="small"
-                    className="btn-save"
-                >
-                    <FaCheck />
-                </Button>
-                <Button 
-                    onClick={handleCancel} 
-                    variant="contained"
-                    size="small"
-                    className="btn-cancel"
-                >
-                    <FaXmark />
-                </Button>
-                <Button 
-                    onClick={() => onDelete(task.id)} 
-                    variant="contained"
-                    size="small"
-                    className="btn-delete"
-                >
-                    <FaTrashCan />
-                </Button>
-            </div>
-        </li>
     );
 }
