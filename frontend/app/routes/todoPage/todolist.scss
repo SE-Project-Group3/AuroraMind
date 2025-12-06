@@ -18,10 +18,50 @@
     flex: 1;
     min-width: 300px;
 
-    h2 {
-      font-size: 1.3rem;
+    .list-header {
       margin-bottom: 10px;
-      font-weight: 600;
+      min-height: 40px; // Prevent jumping when switching modes
+
+      h2 {
+        font-size: 1.3rem;
+        font-weight: 600;
+        cursor: pointer;
+        margin: 0;
+        padding: 5px 0;
+        
+        &:hover {
+          color: #3b82f6; // Blue highlight to indicate clickable
+        }
+      }
+
+      &.editing {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        
+        .edit-inputs {
+          display: flex;
+          width: 100%;
+          .edit-input-text { flex-grow: 1; }
+        }
+
+        .edit-actions {
+          display: flex;
+          gap: 8px;
+          justify-content: flex-end;
+
+          button {
+            min-width: 40px;
+            color: white;
+            
+            &.btn-save { background-color: #4CAF50; }
+            &.btn-cancel { background-color: #9E9E9E; }
+            &.btn-delete { background-color: #F44336; }
+            
+            &:hover { opacity: 0.9; }
+          }
+        }
+      }
     }
 
     .section-title {
@@ -45,18 +85,6 @@
         gap: 0.5rem;
         padding: 0.3rem 0;
         position: relative;
-
-        .task-date {
-          margin-left: auto;
-          color: #60a5fa;
-          font-size: 0.85rem;
-          width: 5rem;
-        }
-
-        &.completed-task {
-          color: #9ca3af;
-          text-decoration: line-through;
-        }
       }
     }
 
@@ -73,6 +101,46 @@
         text-decoration: underline;
       }
     }
+
+    .add-list-wrapper {
+      margin-top: auto;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      padding-top: 1rem;
+    }
+
+    .add-list-form {
+      display: flex; 
+      flex-direction: column; 
+      gap: 10px;
+      margin-top: 1rem;
+      padding: 10px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background: #f8fafc;
+
+      // Target the MUI TextField root to set background
+      .MuiTextField-root {
+        background-color: white;
+      }
+
+      .form-actions {
+        display: flex; 
+        gap: 8px; 
+        justify-content: flex-end;
+
+        button {
+            min-width: 40px;
+            color: white;
+            
+            &.btn-confirm { background-color: #4CAF50; }
+            &.btn-cancel { background-color: #9E9E9E; }
+
+            &:hover { opacity: 0.9; }
+        }
+      }
+    } 
   }
 
   .empty {
