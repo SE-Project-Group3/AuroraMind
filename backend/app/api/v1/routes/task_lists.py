@@ -104,13 +104,13 @@ async def update_task_list(
 )
 async def set_task_list_goal(
     task_list_id: uuid.UUID,
-    goal_data: TaskListGoalUpdate,
+    task_list_data: TaskListUpdate,
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> StandardResponse[TaskListResponse | None]:
     try:
-        task_list = await task_list_service.set_task_list_goal(
-            db, task_list_id, current_user.id, goal_data
+        task_list = await task_list_service.update_task_list(
+            db, task_list_id, current_user.id, task_list_data
         )
     except ValueError as exc:
         raise HTTPException(

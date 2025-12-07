@@ -17,8 +17,10 @@ goal_service = GoalService()
 async def list_goals(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> StandardResponse[list[GoalResponse]]:
+) -> StandardResponse[list[GoalResponse] | None]:
     goals = await goal_service.list_goals(db, current_user.id)
+    if not goals:
+        return ok([])
     return ok([GoalResponse.model_validate(goal) for goal in goals])
 
 

@@ -21,7 +21,7 @@ class PhaseService:
     async def _generate_default_name(
         self, db: AsyncSession, goal_id: uuid.UUID, user_id: uuid.UUID
     ) -> str:
-        stmt: Select[tuple[Phase]] = select(Phase.name).where(
+        stmt: Select[tuple[str]] = select(Phase.name).where(
             and_(Phase.goal_id == goal_id, Phase.is_deleted.is_(False))
         )
         result = await db.execute(stmt)
