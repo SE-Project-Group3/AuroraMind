@@ -10,5 +10,5 @@ class StandardResponse(BaseModel, Generic[T]):
     data: T | None = None
 
 
-def ok(data: T | None = None, message: str = "success", code: int = 200) -> StandardResponse[T | None]:
-    return StandardResponse[T | None](code=code, message=message, data=data)
+def ok(data: T | None = None, message: str = "success", code: int = 200) -> StandardResponse[T]:
+    return StandardResponse[T](code=code, message=message, data=data)
