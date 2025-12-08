@@ -10,7 +10,7 @@ const BreakdownModal: React.FC<BreakdownModalProps> = ({ isOpen, onClose }) => {
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 bg-opacity-30 backdrop-blur-sm p-4">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-8 relative animate-in fade-in zoom-in duration-200">
                 <button
                     onClick={onClose}

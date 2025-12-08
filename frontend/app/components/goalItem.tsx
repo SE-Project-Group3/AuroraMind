@@ -13,7 +13,7 @@ interface GoalItemProps {
 
 const GoalItem: React.FC<GoalItemProps> = ({ data, onOpenBreakdown, onOpenResource, onEdit }) => {
     return (
-        <div className="bg-white rounded-xl p-6 mb-6 shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md transition-shadow">
+        <div className="bg-white rounded-xl p-6 mb-6 shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md transition-shadow w-full">
             {/* 顶部标题栏 */}
             <div className="flex items-center gap-2 mb-6">
                 <h3 className="text-xl font-medium text-gray-800">{data.title}</h3>

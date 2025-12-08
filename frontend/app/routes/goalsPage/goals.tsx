@@ -5,6 +5,7 @@ import { Trash2 } from 'lucide-react';
 import GoalItem from '../../components/goalItem';
 import BreakdownModal from '../../components/breakdownModal';
 import { GoalService } from '../../api/goals';
+import { useNavigate } from "react-router";
 import type {GoalUI} from '../../api/goals';
 
 export function meta({}: Route.MetaArgs) {
@@ -23,6 +24,7 @@ export default function goalsPage() {
     const [goals, setGoals] = useState<GoalUI[]>([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const navigate = useNavigate();
 
     // --- 初始化数据 ---
     const loadData = async () => {
@@ -77,10 +79,10 @@ export default function goalsPage() {
     // --- 渲染 ---
     return (
         <div className="flex-1 bg-gray-50 min-h-screen p-8">
-            <div className="max-w-7xl mx-auto">
+            <div className="max-w-6xl mx-auto">
                 {loading ? (
                     <div className="flex justify-center items-center h-64">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                        <div className="animate-spin rounded-full h-8 w-10 border-b-2 border-blue-500"></div>
                     </div>
                 ) : (
                     goals.map((goal) => (
@@ -96,7 +98,9 @@ export default function goalsPage() {
                             <GoalItem
                                 data={goal}
                                 onOpenBreakdown={() => setIsModalOpen(true)}
-                                onOpenResource={() => {}} // TODO: Add navigation logic
+                                onOpenResource={() => {
+                                    navigate('/app/knowledge');
+                                }}
                                 onEdit={() => handleEditGoal(goal.id)}
                             />
                         </div>
