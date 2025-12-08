@@ -36,7 +36,7 @@ class EmbeddingService:
                 response = await self.client.aio.models.embed_content(
                     model=self.model,
                     contents=cast(list[Any], batch),
-                    config=types.EmbedContentConfig(output_dimensionality=768),
+                    config=types.EmbedContentConfig(output_dimensionality=settings.EMBEDDING_DIM),
                 )
 
                 if not response.embeddings:
