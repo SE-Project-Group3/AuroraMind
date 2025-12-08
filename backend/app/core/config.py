@@ -80,5 +80,11 @@ class Settings(BaseSettings):
     REDIS_PASSWORD: str = ""
     REDIS_DB: int = 0
     
-
+    KNOWLEDGE_STORAGE_ROOT: str = "data"
+    EMBEDDING_MODEL_NAME: str
+    EMBEDDING_DIM: int
+    GEMINI_API_KEY: str | None = None
+    DIFY_API_KEY: str | None = None
+    DIFY_KB_API_URL: str | None = None
+    
 settings = Settings()  # type: ignore
