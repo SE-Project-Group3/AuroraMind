@@ -1,0 +1,166 @@
+// --- Variables ---
+$primary-color: #90caf9;
+$line-color: #e3f2fd;
+$text-color: #333;
+$sub-text-color: #757575;
+$bg-color: #fff;
+
+// Dimensions
+$top-nav-height: 10vh;
+$dot-size: 1rem;
+$line-width: 0.25rem;
+$row-gap: 2rem;
+$date-col-width: 6rem;
+$line-col-width: 4rem;
+
+.timeline-page-container {
+  margin-top: $top-nav-height;
+  height: calc(100vh - #{$top-nav-height});
+  flex: 1;
+  width: 100%;
+  overflow-y: auto;
+  background-color: $bg-color;
+  padding: 2rem;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+
+  .timeline-wrapper {
+    display: flex;
+    width: 100%;
+    // Ensure the wrapper expands to fill available space
+    gap: 3rem;
+  }
+
+  .timeline-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+}
+
+// --- ROW STYLING ---
+.timeline-row {
+  display: grid;
+  align-items: flex-start;
+  margin-bottom: $row-gap;
+  position: relative;
+
+  // 1. Assign Grid Areas
+  .date-section { grid-area: date; }
+  .line-section { grid-area: line; }
+  
+  // 2. Configure the Card Section for Flex Alignment
+  .card-section { 
+    grid-area: card; 
+    display: flex; 
+    // Alignment (start/end) is handled in the .left/.right blocks below
+  }
+
+  // 3. Force all grid items to the first row to prevent stacking
+  > div {
+    grid-row: 1;
+  }
+
+  // --- CARD ANIMATION LOGIC ---
+  .card-wrapper {
+    // Default state: 75% width of the available space
+    width: 90%;
+    height: 100%; // Ensure it fills the height if row stretches
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease;
+    border-radius: 0.75rem;
+    
+    // Prevent text flickering during resize
+    will-change: width;
+  }
+
+  // On Hover: Expand to 90%
+  &:hover .card-wrapper {
+    width: 95%;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    z-index: 5;
+    background-color: #fff;
+  }
+
+  // --- LEFT COLUMN (Weekly) ---
+  // Layout: [Date] [Line] [Card]
+  // Card should be anchored to the LEFT (near the line), growing towards the right.
+  &.left {
+    grid-template-columns: $date-col-width $line-col-width 1fr;
+    grid-template-areas: "date line card";
+
+    .date-section { text-align: right; padding-right: 0.5rem; }
+    .line-section { display: flex; justify-content: center; }
+    
+    // Anchor card to the start of the cell (the side closest to the line)
+    .card-section {
+      justify-content: flex-start;
+    }
+  }
+
+  // --- RIGHT COLUMN (Monthly) ---
+  // Layout: [Card] [Line] [Date]
+  // Card should be anchored to the RIGHT (near the line), growing towards the left.
+  &.right {
+    grid-template-columns: 1fr $line-col-width $date-col-width;
+    grid-template-areas: "card line date";
+
+    .line-section { display: flex; justify-content: center; }
+    .date-section { text-align: left; padding-left: 0.5rem; }
+    
+    // Anchor card to the end of the cell (the side closest to the line)
+    .card-section {
+      justify-content: flex-end;
+    }
+  }
+
+  // --- COMPONENT DETAILS ---
+  .date-section {
+    padding-top: 0.8rem;
+    .sub-label {
+      display: block;
+      font-size: 0.75rem;
+      color: $sub-text-color;
+      margin-bottom: 0.25rem;
+    }
+    .main-label {
+      font-weight: 700;
+      color: $text-color;
+      font-size: 1rem;
+    }
+  }
+
+  .line-section {
+    position: relative;
+    height: 100%;
+
+    .dot {
+      width: $dot-size;
+      height: $dot-size;
+      border-radius: 50%;
+      border: 0.2rem solid $primary-color;
+      background-color: #fff;
+      z-index: 2;
+      margin-top: 1rem;
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .line {
+      position: absolute;
+      top: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      width: $line-width;
+      background-color: $line-color;
+      z-index: 1;
+      // Line height bridges the gap to the next item
+      height: calc(100% + #{$row-gap});
+    }
+  }
+
+  &:last-child .line-section .line {
+    display: none;
+  }
+}
