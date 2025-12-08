@@ -1,4 +1,4 @@
-import type { Route } from "../../../.react-router/types/app/routes/+types";
+import type { Route } from "./+types/dashboard";
 import "./dashboard.scss"
 
 export function meta({}: Route.MetaArgs) {

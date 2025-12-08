@@ -39,9 +39,12 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
             const res = await register({ username, email, password });
             console.log("register response:", res);
 
-            if (res.code === 0 && res.data) {
+            const isSuccess =
+                (res.code === 0 || res.code === 200 || res.code === 201) &&
+                (!!res.data);
+
+            if (isSuccess) {
                 setInfo("Registration successful! You can now log in.");
-                // 这里可以直接关闭弹窗，也可以让用户自己点关闭
                 onSuccess?.();
             } else {
                 setError(res.message || "Registration failed");
