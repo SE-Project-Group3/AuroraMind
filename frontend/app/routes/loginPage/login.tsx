@@ -101,7 +101,7 @@ export default function LoginPage() {
                             <RegisterForm
                                 onSuccess={() => {
                                     console.log("register success!");
-                                    navigate("/app")
+                                    // navigate("/app")
                                     setShowRegister(false);
                                 }}
                             />

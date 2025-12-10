@@ -79,6 +79,7 @@ export default function goalsPage() {
     // --- 渲染 ---
     return (
         <div className="flex-1 bg-gray-50 min-h-screen p-8">
+            <div className="flex justify-between items-center mb-8 h-16"></div>
             <div className="max-w-6xl mx-auto">
                 {loading ? (
                     <div className="flex justify-center items-center h-64">
