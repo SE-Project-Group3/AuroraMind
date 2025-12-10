@@ -12,7 +12,7 @@ const getHeaders = () => {
 };
 
 // ==========================================
-// 类型定义 (保持不变)
+// 类型定义
 // ==========================================
 export interface ApiResponse<T> {
     code: number;
@@ -71,6 +71,17 @@ export interface GoalUI {
     timeline: TimelinePoint[];
     phases: TaskGroup[];
     lists: TaskGroup[];
+}
+
+interface CreatePhasePayload {
+    goal_id: string;
+    name: string;
+}
+
+interface CreateTaskPayload {
+    phase_id: string;
+    name: string;
+    is_completed: boolean;
 }
 
 // ==========================================
@@ -220,7 +231,138 @@ export const GoalService = {
         }
     },
 
-    // ... Update 和 Delete 保持不变，或者暂时忽略 ...
-    async updateGoal(id: string, name: string, description: string): Promise<GoalUI | null> { return null; },
-    async deleteGoal(id: string): Promise<boolean> { return true; }
+    // PUT Update Goal
+    async updateGoal(id: string, name: string, description: string): Promise<GoalUI | null> {
+        try {
+            console.log(`Updating Goal: ${id}`);
+            const res = await axios.put<ApiResponse<ApiGoal>>(
+                `${API_BASE}/api/v1/goals/${id}`,
+                { name, description },
+                { headers: getHeaders() }
+            );
+
+            // 如果更新成功 (code === 0)，我们需要返回新的 GoalUI 数据以更新界面
+            if (res.data && res.data.code === 0) {
+                console.log("Goal Update Success");
+                // 使用适配器将后端返回的 ApiGoal 转为前端的 GoalUI
+                return enrichGoalData(res.data.data);
+            }
+            return null;
+        } catch (e) {
+            console.error("Update Goal Failed", e);
+            return null;
+        }
+    },
+
+    // DELETE Goal
+    async deleteGoal(id: string): Promise<boolean> {
+        try {
+            console.log(`Deleting Goal: ${id}`);
+            const res = await axios.delete<ApiResponse<boolean>>(
+                `${API_BASE}/api/v1/goals/${id}`,
+                { headers: getHeaders() }
+            );
+
+            // code === 0 就算成功
+            const success = res.data && res.data.code === 0;
+            if (success) {
+                console.log("Goal Delete Success");
+            }
+            return success;
+        } catch (e) {
+            console.error("Delete Goal Failed", e);
+            return false;
+        }
+    },
+
+    // ==========================================
+    // 新增：Phase 相关接口
+    // ==========================================
+
+    // 创建 Phase
+    async createPhase(goalId: string, name: string): Promise<boolean> {
+        try {
+            const res = await axios.post<ApiResponse<any>>(`${API_BASE}/api/v1/phases`,
+                { goal_id: goalId, name },
+                { headers: getHeaders() }
+            );
+            return res.data?.code === 0;
+        } catch (e) {
+            console.error("Create Phase Failed", e);
+            return false;
+        }
+    },
+
+    // 更新 Phase (重命名)
+    async updatePhase(phaseId: string, name: string): Promise<boolean> {
+        try {
+            const res = await axios.put<ApiResponse<any>>(`${API_BASE}/api/v1/phases/${phaseId}`,
+                { name },
+                { headers: getHeaders() }
+            );
+            return res.data?.code === 0;
+        } catch (e) {
+            console.error("Update Phase Failed", e);
+            return false;
+        }
+    },
+
+    // 删除 Phase
+    async deletePhase(phaseId: string): Promise<boolean> {
+        try {
+            const res = await axios.delete<ApiResponse<any>>(`${API_BASE}/api/v1/phases/${phaseId}`, {
+                headers: getHeaders()
+            });
+            return res.data?.code === 0;
+        } catch (e) {
+            console.error("Delete Phase Failed", e);
+            return false;
+        }
+    },
+
+    // ==========================================
+    // Phase Task 相关接口
+    // ==========================================
+
+    // 创建 Task
+    async createPhaseTask(phaseId: string, name: string): Promise<boolean> {
+        try {
+            // 注意：API文档显示 URL 里有 phase_id，Body 里也有 phase_id，为了保险我们都带上
+            const res = await axios.post<ApiResponse<any>>(`${API_BASE}/api/v1/phases/${phaseId}/tasks`,
+                { phase_id: phaseId, name, is_completed: false },
+                { headers: getHeaders() }
+            );
+            return res.data?.code === 0;
+        } catch (e) {
+            console.error("Create Task Failed", e);
+            return false;
+        }
+    },
+
+    // 更新 Task (重命名 或 勾选完成)
+    async updatePhaseTask(taskId: string, name: string, isCompleted: boolean): Promise<boolean> {
+        try {
+            const res = await axios.put<ApiResponse<any>>(`${API_BASE}/api/v1/phases/tasks/${taskId}`,
+                { name, is_completed: isCompleted },
+                { headers: getHeaders() }
+            );
+            return res.data?.code === 0;
+        } catch (e) {
+            console.error("Update Task Failed", e);
+            return false;
+        }
+    },
+
+    // 删除 Task
+    async deletePhaseTask(taskId: string): Promise<boolean> {
+        try {
+            const res = await axios.delete<ApiResponse<any>>(`${API_BASE}/api/v1/phases/tasks/${taskId}`, {
+                headers: getHeaders()
+            });
+            return res.data?.code === 0;
+        } catch (e) {
+            console.error("Delete Task Failed", e);
+            return false;
+        }
+    }
 };
