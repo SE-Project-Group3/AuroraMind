@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Trash2 } from 'lucide-react';
 import GoalItem from '../../components/goalItem';
 import BreakdownModal from '../../components/breakdownModal';
+import GoalEditModal from '../../components/goalEditModal'; // [1] 引入新组件
 import { GoalService } from '../../api/goals';
 import { useNavigate } from "react-router";
 import type {GoalUI} from '../../api/goals';
@@ -24,6 +25,7 @@ export default function goalsPage() {
     const [goals, setGoals] = useState<GoalUI[]>([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingGoal, setEditingGoal] = useState<GoalUI | null>(null);
     const navigate = useNavigate();
 
     // --- 初始化数据 ---
@@ -39,6 +41,16 @@ export default function goalsPage() {
         }
     };
 
+    const refreshData = async () => {
+        const data = await GoalService.getAllGoals();
+        setGoals(data);
+        // 如果当前正在编辑，也要更新编辑弹窗里的数据引用，防止数据不同步
+        if (editingGoal) {
+            const updatedCurrent = data.find(g => g.id === editingGoal.id);
+            if (updatedCurrent) setEditingGoal(updatedCurrent);
+        }
+    };
+
     useEffect(() => {
         loadData();
     }, []);
@@ -49,31 +61,30 @@ export default function goalsPage() {
         if (!name) return;
 
         const newGoal = await GoalService.createGoal(name, "New Goal Description");
-        if (newGoal) {
-            setGoals(prev => [...prev, newGoal]);
-        }
+        await loadData();
+        // TODO: update logic optimization
+        // if (newGoal) {
+        //     // setGoals(prev => [...prev, newGoal]);
+        //     console.log("new goal created.")
+        //     await loadData();
+        // }
     };
 
-    const handleEditGoal = async (id: string) => {
-        const currentGoal = goals.find(g => g.id === id);
-        if (!currentGoal) return;
-
-        const newName = prompt("Edit name:", currentGoal.title);
-        if (!newName) return;
-
-        const updatedGoal = await GoalService.updateGoal(id, newName, currentGoal.description);
-        if (updatedGoal) {
-            setGoals(prev => prev.map(g => g.id === id ? updatedGoal : g));
-        }
+    const handleEditGoal = (goal: GoalUI) => {
+        setEditingGoal(goal);
     };
 
     const handleDeleteGoal = async (id: string) => {
         if (!confirm("Are you sure?")) return;
 
         const success = await GoalService.deleteGoal(id);
-        if (success) {
-            setGoals(prev => prev.filter(g => g.id !== id));
-        }
+        // TODO: update logic optimization
+        await loadData();
+        // if (success) {
+        //     // setGoals(prev => prev.filter(g => g.id !== id));
+        //     console.log("goal deleted.")
+        //     await loadData();
+        // }
     };
 
     // --- 渲染 ---
@@ -102,7 +113,7 @@ export default function goalsPage() {
                                 onOpenResource={() => {
                                     navigate('/app/knowledge');
                                 }}
-                                onEdit={() => handleEditGoal(goal.id)}
+                                onEdit={() => handleEditGoal(goal)}
                             />
                         </div>
                     ))
@@ -118,6 +129,13 @@ export default function goalsPage() {
                 </div>
             </div>
             <BreakdownModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+            {/* [4] 渲染新的编辑弹窗 */}
+            <GoalEditModal
+                isOpen={!!editingGoal}
+                goal={editingGoal}
+                onClose={() => setEditingGoal(null)}
+                onGoalUpdated={refreshData} // 数据变动时，静默刷新
+            />
         </div>
     );
 }
