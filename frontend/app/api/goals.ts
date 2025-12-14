@@ -99,9 +99,30 @@ const calculateProgress = (groups: TaskGroup[]): number => {
     return total === 0 ? 0 : Math.round((completed / total) * 100);
 };
 
-const fetchTasksForGroup = async (parentId: string): Promise<UiTask[]> => {
-    // 暂时返回空任务，防止这里报错干扰调试
-    return [];
+const fetchTasksForGroup = async (phaseId: string): Promise<UiTask[]> => {
+    try {
+        // 假设你的后端有一个获取特定 Phase 下 Tasks 的接口
+        // 如果后端在获取 Phase 列表时已经包含了 Tasks，则不需要这一步，
+        // 但根据你的类型定义，看起来是分开获取的。
+
+        const res = await axios.get<ApiResponse<any[]>>(`${API_BASE}/api/v1/phases/${phaseId}/tasks`, {
+            headers: getHeaders()
+        });
+
+        if (res.data.code === 0 && Array.isArray(res.data.data)) {
+            // 映射后端 Task 格式到前端 UiTask 格式
+            return res.data.data.map((t: any) => ({
+                id: t.id,
+                text: t.name,
+                done: t.is_completed // 确保字段名对应
+            }));
+        }
+        return [];
+    } catch (e) {
+        // 暂时忽略错误，返回空，避免整个页面崩溃
+        console.warn(`Failed to fetch tasks for phase ${phaseId}`, e);
+        return [];
+    }
 };
 
 // ==========================================
