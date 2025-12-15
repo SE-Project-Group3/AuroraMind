@@ -231,12 +231,21 @@ async def conversation_stream(
         ) + "\n\n"
         try:
             chunk_entities = [item[0] for item in results]
-            async for delta in knowledge_service.stream_answer_with_dify(
-                question=payload.question, contexts=chunk_entities, user_id=current_user.id
+            async for event in knowledge_service.stream_chat_with_dify(
+                question=payload.question,
+                contexts=chunk_entities,
+                user_id=current_user.id,
+                conversation_id=payload.conversation_id,
             ):
-                yield "event: delta\n" + "data: " + json.dumps(
-                    {"text": delta}, ensure_ascii=False
-                ) + "\n\n"
+                if event.get("type") == "meta":
+                    yield "event: meta\n" + "data: " + json.dumps(
+                        {"conversation_id": event.get("conversation_id")},
+                        ensure_ascii=False,
+                    ) + "\n\n"
+                elif event.get("type") == "delta":
+                    yield "event: delta\n" + "data: " + json.dumps(
+                        {"text": event.get("text")}, ensure_ascii=False
+                    ) + "\n\n"
             yield "event: done\n" + "data: " + json.dumps(
                 {"ok": True}, ensure_ascii=False
             ) + "\n\n"

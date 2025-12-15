@@ -4,7 +4,7 @@ import json
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Sequence, AsyncIterator
+from typing import Sequence, AsyncIterator, Any
 
 from fastapi import UploadFile, HTTPException, status
 import httpx
@@ -297,11 +297,36 @@ class KnowledgeService:
         question: str,
         contexts: list[KnowledgeChunk],
         user_id: uuid.UUID,
+        conversation_id: str | None = None,
         *,
         timeout_s: float = 60,
     ) -> AsyncIterator[str]:
+        async for event in self.stream_chat_with_dify(
+            question=question,
+            contexts=contexts,
+            user_id=user_id,
+            conversation_id=conversation_id,
+            timeout_s=timeout_s,
+        ):
+            if event.get("type") == "delta":
+                text = event.get("text")
+                if isinstance(text, str) and text:
+                    yield text
+
+    async def stream_chat_with_dify(
+        self,
+        *,
+        question: str,
+        contexts: list[KnowledgeChunk],
+        user_id: uuid.UUID,
+        conversation_id: str | None = None,
+        timeout_s: float = 60,
+    ) -> AsyncIterator[dict[str, Any]]:
         """
-        Call Dify with response_mode="streaming" and yield incremental answer deltas.
+        Call Dify with response_mode="streaming".
+        Yields events:
+        - {"type": "meta", "conversation_id": "..."}
+        - {"type": "delta", "text": "..."}
         """
         context_text = "\n\n".join([c.content for c in contexts])
         payload = {
@@ -309,10 +334,15 @@ class KnowledgeService:
             "query": "question:" + question + "\n\ncontext:" + context_text,
             "response_mode": "streaming",
             "user": str(user_id),
-            "conversation_id": None,
+            "conversation_id": conversation_id,
         }
 
         last_answer = ""
+        sent_conversation_id: str | None = None
+
+        if conversation_id:
+            sent_conversation_id = conversation_id
+            yield {"type": "meta", "conversation_id": conversation_id}
 
         async with httpx.AsyncClient(timeout=timeout_s) as client:
             async with client.stream(
@@ -337,6 +367,15 @@ class KnowledgeService:
                     except Exception:
                         continue
 
+                    cid = data.get("conversation_id")
+                    if (
+                        isinstance(cid, str)
+                        and cid
+                        and sent_conversation_id is None
+                    ):
+                        sent_conversation_id = cid
+                        yield {"type": "meta", "conversation_id": cid}
+
                     answer = data.get("answer")
                     if isinstance(answer, str):
                         if answer.startswith(last_answer):
@@ -345,5 +384,5 @@ class KnowledgeService:
                             delta = answer
                         last_answer = answer
                         if delta:
-                            yield delta
+                            yield {"type": "delta", "text": delta}
 

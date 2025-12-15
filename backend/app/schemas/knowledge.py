@@ -33,6 +33,7 @@ class KnowledgeConversationRequest(BaseModel):
     question: str
     top_k: int = Field(3, ge=1, le=20)
     document_id: uuid.UUID | None = None
+    conversation_id: str | None = None
     # Hard cap to avoid huge prompts (characters, not tokens).
     max_context_chars: int = Field(12000, ge=1000, le=50000)
 
