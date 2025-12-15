@@ -69,29 +69,3 @@
    uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 8080
    ```
    The server listens on `http://127.0.0.1:8080` by default.
-
-8. **Start Celery worker (Knowledge ingestion)**
-
-   Celery consumes ingestion jobs from Redis and updates `knowledge_documents.ingest_progress`.
-
-   - Option A (recommended): run worker in a second terminal:
-
-   ```bash
-   uv run celery -A app.core.celery_app:celery_app worker -l info
-   ```
-
-   - Option B (single command; still spawns two processes under the hood):
-
-   ```bash
-   uv run sh -c "celery -A app.core.celery_app:celery_app worker -l info & uvicorn app.main:app --reload --host 127.0.0.1 --port 8080"
-   ```
-
-## Makefile shortcuts
-
-From the `backend/` directory:
-
-```bash
-make infra-up
-make migrate
-make dev
-```

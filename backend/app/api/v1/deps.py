@@ -5,7 +5,6 @@ from app.core.db import get_db, AsyncSession
 from app.core.security import verify_token
 from app.schemas.user import UserResponse
 from app.services.user_service import UserService
-
 security = HTTPBearer()
 user_service = UserService()
 
