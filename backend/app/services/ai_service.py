@@ -11,7 +11,7 @@ from app.schemas.breakdown import BreakdownItem
 
 class DifyAIService:
     """
-    Minimal client for Dify chat-messages endpoint to get task breakdowns.
+    Minimal client for Dify workflow/chat endpoint to get task breakdowns.
     """
 
     def __init__(self) -> None:
@@ -35,33 +35,35 @@ class DifyAIService:
         extra: dict[str, Any] | None = None,
     ) -> list[BreakdownItem]:
         """
-        Send the text to Dify and parse the response into structured items.
+        Send the text to Dify workflow and parse the response into structured items.
+        Expects the workflow output field to be named 'text'.
         """
         if not self.api_base:
             msg = "DIFY_API_BASE is not configured"
             raise RuntimeError(msg)
 
+        inputs: dict[str, Any] = {"description": text}
+        if model:
+            inputs["model"] = model
+        if extra:
+            inputs.update(extra)
+
         payload: dict[str, Any] = {
-            "query": text,
-            "inputs": {},
+            "inputs": inputs,
             "response_mode": "blocking",
             "user": user_id or "system",
         }
-        if model:
-            payload["model"] = model
-        if extra:
-            payload.update(extra)
 
         async with httpx.AsyncClient(timeout=20.0) as client:
             resp = await client.post(
-                f"{self.api_base}/chat-messages",
+                f"{self.api_base}/workflows/run",
                 json=payload,
                 headers=self._get_headers(),
             )
             resp.raise_for_status()
             data = resp.json()
 
-        raw_answer = data.get("answer") or ""
+        raw_answer = data.get("data", {}).get("outputs", {}).get("text") or ""
         return self._parse_breakdown_text(raw_answer)
 
     def _parse_breakdown_text(self, raw: str) -> list[BreakdownItem]:
