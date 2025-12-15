@@ -84,8 +84,6 @@ class Settings(BaseSettings):
     CELERY_BROKER_URL: str | None = None
     CELERY_RESULT_BACKEND: str | None = None
     # External AI (Dify/Gemini)
-    DIFY_API_BASE: str | None = None
-    DIFY_API_KEY: str | None = None
     
     KNOWLEDGE_STORAGE_ROOT: str = "data"
     # Embeddings (local HF)
@@ -103,7 +101,8 @@ class Settings(BaseSettings):
     KNOWLEDGE_CONTEXT_PREVIEW_CHARS: int = 400
 
     # Dify (LLM QA)
-    DIFY_API_URL: str = "https://api.dify.ai/v1/chat-messages"
+    DIFY_API_BASE: str = "https://api.dify.ai/v1"
+    DIFY_BR_API_KEY: str | None = None
     DIFY_KB_API_KEY: str | None = None
     
 settings = Settings()  # type: ignore

@@ -279,16 +279,16 @@ class KnowledgeService:
         return [(row[0], row[1], float(row[2])) for row in rows]
 
     def _dify_url(self) -> str:
-        url = settings.DIFY_API_URL
+        url = settings.DIFY_API_BASE
         if not url:
             raise RuntimeError("Dify API url not configured")
         return url
 
     def _dify_headers(self) -> dict[str, str]:
-        if not settings.DIFY_KB_API_KEY:
-            raise RuntimeError("Dify KB Chat Application API key not configured")
+        if not settings.DIFY_BR_API_KEY:
+            raise RuntimeError("Dify BR Chat Application API key not configured")
         return {
-            "Authorization": f"Bearer {settings.DIFY_KB_API_KEY}",
+            "Authorization": f"Bearer {settings.DIFY_BR_API_KEY}",
             "Content-Type": "application/json",
         }
 

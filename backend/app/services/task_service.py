@@ -159,7 +159,8 @@ class TaskService:
             task_list_id=task_data.task_list_id,
             end_date=task_data.end_date,
         )
-        new_task.start_date = task_data.start_date
+        if task_data.start_date:
+            new_task.start_date = task_data.start_date
 
         db.add(new_task)
         await db.commit()

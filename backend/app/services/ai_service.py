@@ -16,17 +16,27 @@ class DifyAIService:
 
     def __init__(self) -> None:
         self.api_base = settings.DIFY_API_BASE.rstrip("/") if settings.DIFY_API_BASE else None
-        self.api_key = settings.DIFY_API_KEY
+        self.breakdown_api_key = settings.DIFY_BR_API_KEY
+        self.knowledgebase_api_key = settings.DIFY_KB_API_KEY
 
-    def _get_headers(self) -> dict[str, str]:
-        if not self.api_key:
+    def _get_breakdown_headers(self) -> dict[str, str]:
+        if not self.breakdown_api_key:
             msg = "DIFY_API_KEY is not configured"
+            raise RuntimeError(msg)   
+        return {
+            "Authorization": f"Bearer {self.breakdown_api_key}",
+            "Content-Type": "application/json",
+        }   
+
+    def _get_knowledgebase_headers(self) -> dict[str, str]:
+        if not self.knowledgebase_api_key:
+            msg = "DIFY_KB_API_KEY is not configured"
             raise RuntimeError(msg)
         return {
-            "Authorization": f"Bearer {self.api_key}",
+            "Authorization": f"Bearer {self.knowledgebase_api_key}",
             "Content-Type": "application/json",
         }
-
+    
     async def breakdown_text(
         self,
         text: str,
@@ -58,7 +68,7 @@ class DifyAIService:
             resp = await client.post(
                 f"{self.api_base}/workflows/run",
                 json=payload,
-                headers=self._get_headers(),
+                headers=self._get_breakdown_headers(),
             )
             resp.raise_for_status()
             data = resp.json()
