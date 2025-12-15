@@ -12,6 +12,7 @@ from app.models.base import BaseModel
 
 if TYPE_CHECKING:
     from app.models.knowledge_chunk import KnowledgeChunk
+    from app.models.goal import Goal
 
 
 class KnowledgeDocument(BaseModel):
@@ -23,6 +24,13 @@ class KnowledgeDocument(BaseModel):
         nullable=False,
         index=True,
         comment="owner id",
+    )
+    goal_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("goals.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="optional related goal id",
     )
     original_filename: Mapped[str] = mapped_column(
         String(255), nullable=False, comment="original filename from upload"
@@ -55,4 +63,5 @@ class KnowledgeDocument(BaseModel):
     chunks: Mapped[list["KnowledgeChunk"]] = relationship(
         back_populates="document", cascade="all, delete-orphan"
     )
+    goal: Mapped["Goal | None"] = relationship()
 

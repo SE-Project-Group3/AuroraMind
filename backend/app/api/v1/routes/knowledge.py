@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
 from fastapi.responses import StreamingResponse
 import uuid
@@ -14,6 +14,7 @@ from app.schemas.knowledge import (
     KnowledgeContext,
     KnowledgeConversationRequest,
     KnowledgeDocumentResponse,
+    KnowledgeDocumentGoalUpdateRequest,
     KnowledgeQueryRequest,
     KnowledgeQueryResponse,
 )
@@ -31,11 +32,17 @@ knowledge_service = KnowledgeService()
 )
 async def upload_document(
     file: UploadFile = File(...),
+    goal_id: str | None = Form(None),
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> StandardResponse[KnowledgeDocumentResponse]:
     try:
-        document = await knowledge_service.upload_document(db, current_user.id, file)
+        document = await knowledge_service.upload_document(
+            db,
+            current_user.id,
+            file,
+            goal_id=uuid.UUID(goal_id) if goal_id else None,
+        )
     except RuntimeError as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)
@@ -58,6 +65,34 @@ async def list_documents(
     ]
     return ok(data=response)
 
+@router.get(
+    "/documents/by-goal/{goal_id}",
+    response_model=StandardResponse[list[KnowledgeDocumentResponse]],
+)
+async def list_documents_by_goal(
+    goal_id: str,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> StandardResponse[list[KnowledgeDocumentResponse]]:
+    documents = await knowledge_service.list_documents_by_goal(
+        db, current_user.id, uuid.UUID(goal_id)
+    )
+    response = [KnowledgeDocumentResponse.model_validate(d) for d in documents]
+    return ok(data=response)
+
+
+@router.get(
+    "/documents/unassigned",
+    response_model=StandardResponse[list[KnowledgeDocumentResponse]],
+)
+async def list_documents_unassigned(
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> StandardResponse[list[KnowledgeDocumentResponse]]:
+    documents = await knowledge_service.list_documents_unassigned(db, current_user.id)
+    response = [KnowledgeDocumentResponse.model_validate(d) for d in documents]
+    return ok(data=response)
+
 
 @router.get(
     "/documents/{document_id}/file",
@@ -72,6 +107,24 @@ async def download_document(
         db, current_user.id, uuid.UUID(document_id)
     )
     return FileResponse(path, filename=path.name)
+
+@router.patch(
+    "/documents/{document_id}/goal",
+    response_model=StandardResponse[KnowledgeDocumentResponse],
+)
+async def update_document_goal(
+    document_id: str,
+    payload: KnowledgeDocumentGoalUpdateRequest,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> StandardResponse[KnowledgeDocumentResponse]:
+    document = await knowledge_service.update_document_goal(
+        db,
+        current_user.id,
+        uuid.UUID(document_id),
+        payload.goal_id,
+    )
+    return ok(KnowledgeDocumentResponse.model_validate(document))
 
 @router.delete(
     "/documents/{document_id}",

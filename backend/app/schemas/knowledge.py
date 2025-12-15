@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 class KnowledgeDocumentResponse(BaseModel):
     id: uuid.UUID
+    goal_id: uuid.UUID | None = None
     original_filename: str
     stored_filename: str
     mime_type: str | None = None
@@ -29,11 +30,14 @@ class KnowledgeQueryRequest(BaseModel):
 
 
 class KnowledgeConversationRequest(BaseModel):
-    question: str = Field(..., description="user question for knowledge-base QA")
+    question: str
     top_k: int = Field(3, ge=1, le=20)
     document_id: uuid.UUID | None = None
     # Hard cap to avoid huge prompts (characters, not tokens).
     max_context_chars: int = Field(12000, ge=1000, le=50000)
+
+class KnowledgeDocumentGoalUpdateRequest(BaseModel):
+    goal_id: uuid.UUID | None
 
 
 class KnowledgeContext(BaseModel):

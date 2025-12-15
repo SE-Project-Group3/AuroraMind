@@ -13,10 +13,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
+from app.models.goal import Goal
 from app.models.knowledge_chunk import KnowledgeChunk
 from app.models.knowledge_document import KnowledgeDocument
 from app.services.embedding_service import EmbeddingService
-from app.utils.knowledge_ingestion import extract_text_from_path, split_text
 
 def _make_storage_dir(user_id: uuid.UUID) -> Path:
     base = Path(settings.KNOWLEDGE_STORAGE_ROOT).expanduser().resolve()
@@ -49,8 +49,24 @@ class KnowledgeService:
         return self.embedding_service
 
     async def upload_document(
-        self, db: AsyncSession, user_id: uuid.UUID, file: UploadFile
+        self,
+        db: AsyncSession,
+        user_id: uuid.UUID,
+        file: UploadFile,
+        goal_id: uuid.UUID | None = None,
     ) -> KnowledgeDocument:
+        if goal_id is not None:
+            stmt = select(Goal.id).where(
+                Goal.id == goal_id,
+                Goal.user_id == user_id,
+                Goal.is_deleted.is_(False),
+            )
+            result = await db.execute(stmt)
+            if result.scalar_one_or_none() is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail="Goal not found"
+                )
+
         user_dir = _make_storage_dir(user_id)
         stored_filename, target_path = _build_unique_filename(
             user_dir, file.filename or "upload"
@@ -61,6 +77,7 @@ class KnowledgeService:
 
         document = KnowledgeDocument(
             user_id=user_id,
+            goal_id=goal_id,
             original_filename=file.filename or stored_filename,
             stored_filename=stored_filename,
             file_path=str(target_path),
@@ -92,6 +109,36 @@ class KnowledgeService:
         result = await db.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def update_document_goal(
+        self,
+        db: AsyncSession,
+        user_id: uuid.UUID,
+        document_id: uuid.UUID,
+        goal_id: uuid.UUID | None,
+    ) -> KnowledgeDocument:
+        document = await self.get_document(db, user_id, document_id)
+        if not document:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Document not found"
+            )
+
+        if goal_id is not None:
+            stmt = select(Goal.id).where(
+                Goal.id == goal_id,
+                Goal.user_id == user_id,
+                Goal.is_deleted.is_(False),
+            )
+            result = await db.execute(stmt)
+            if result.scalar_one_or_none() is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail="Goal not found"
+                )
+
+        document.goal_id = goal_id
+        await db.commit()
+        await db.refresh(document)
+        return document
+
     async def list_documents(
         self, db: AsyncSession, user_id: uuid.UUID
     ) -> Sequence[KnowledgeDocument]:
@@ -100,6 +147,40 @@ class KnowledgeService:
             .where(
                 and_(
                     KnowledgeDocument.user_id == user_id,
+                    KnowledgeDocument.is_deleted.is_(False),
+                )
+            )
+            .order_by(KnowledgeDocument.created_at.desc())
+        )
+        result = await db.execute(stmt)
+        return result.scalars().all()
+
+    async def list_documents_by_goal(
+        self, db: AsyncSession, user_id: uuid.UUID, goal_id: uuid.UUID
+    ) -> Sequence[KnowledgeDocument]:
+        stmt = (
+            select(KnowledgeDocument)
+            .where(
+                and_(
+                    KnowledgeDocument.user_id == user_id,
+                    KnowledgeDocument.goal_id == goal_id,
+                    KnowledgeDocument.is_deleted.is_(False),
+                )
+            )
+            .order_by(KnowledgeDocument.created_at.desc())
+        )
+        result = await db.execute(stmt)
+        return result.scalars().all()
+
+    async def list_documents_unassigned(
+        self, db: AsyncSession, user_id: uuid.UUID
+    ) -> Sequence[KnowledgeDocument]:
+        stmt = (
+            select(KnowledgeDocument)
+            .where(
+                and_(
+                    KnowledgeDocument.user_id == user_id,
+                    KnowledgeDocument.goal_id.is_(None),
                     KnowledgeDocument.is_deleted.is_(False),
                 )
             )
