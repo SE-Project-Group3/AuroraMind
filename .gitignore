@@ -63,3 +63,9 @@ frontend/.env
 frontend/node_modules/
 frontend/.react-router/
 frontend/build/
+
+# Backend data storage
+backend/data/
+
+# Cache files
+.mypy_cache
