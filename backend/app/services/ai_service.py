@@ -80,7 +80,14 @@ class DifyAIService:
             # Strip common prefixes like "1.", "1)", "- ", "• "
             cleaned = re.sub(r"^[\-\•\*\s]*", "", cleaned)
             cleaned = re.sub(r"^\d+[\.\:\)\-]\s*", "", cleaned)
+            cleaned = cleaned.strip("[]")  # remove surrounding brackets if present
             if cleaned:
                 items.append(BreakdownItem(order=order, text=cleaned))
                 order += 1
+
+        # If the first line is a summary, make it order 0 and renumber the rest from 1
+        if items and items[0].text.lower().startswith("summary"):
+            items[0].order = 0
+            for idx, item in enumerate(items[1:], start=1):
+                item.order = idx
         return items
