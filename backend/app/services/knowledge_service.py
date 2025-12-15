@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import json
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Sequence
+from typing import Sequence, AsyncIterator
 
 from fastapi import UploadFile, HTTPException, status
 import httpx
@@ -199,35 +200,74 @@ class KnowledgeService:
         rows = result.all()
         return [(row[0], row[1], float(row[2])) for row in rows]
 
-    async def answer_with_dify(
-        self,
-        question: str,
-        contexts: list[KnowledgeChunk],
-    ) -> str:
-        if not settings.DIFY_KB_API_URL or not settings.DIFY_API_KEY:
-            raise RuntimeError("Dify KB API not configured")
+    def _dify_url(self) -> str:
+        url = settings.DIFY_API_URL
+        if not url:
+            raise RuntimeError("Dify API url not configured")
+        return url
 
-        context_text = "\n\n".join([c.content for c in contexts])
-        payload = {
-            "inputs": {
-                "question": question,
-                "context": context_text,
-            },
-            "response_mode": "blocking",
-            "conversation_id": None,
-        }
-        headers = {
-            "Authorization": f"Bearer {settings.DIFY_API_KEY}",
+    def _dify_headers(self) -> dict[str, str]:
+        if not settings.DIFY_KB_API_KEY:
+            raise RuntimeError("Dify KB Chat Application API key not configured")
+        return {
+            "Authorization": f"Bearer {settings.DIFY_KB_API_KEY}",
             "Content-Type": "application/json",
         }
 
-        async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.post(
-                settings.DIFY_KB_API_URL, json=payload, headers=headers
-            )
-            if resp.status_code >= 400:
-                raise RuntimeError(f"Dify call failed: {resp.status_code} {resp.text}")
-            data = resp.json()
-    
-            return data.get("answer") or data.get("output") or ""
+    async def stream_answer_with_dify(
+        self,
+        question: str,
+        contexts: list[KnowledgeChunk],
+        user_id: uuid.UUID,
+        *,
+        timeout_s: float = 60,
+    ) -> AsyncIterator[str]:
+        """
+        Call Dify with response_mode="streaming" and yield incremental answer deltas.
+        """
+        context_text = "\n\n".join([c.content for c in contexts])
+        payload = {
+            "inputs": {},
+            "query": "question:" + question + "\n\ncontext:" + context_text,
+            "response_mode": "streaming",
+            "user": str(user_id),
+            "conversation_id": None,
+        }
+
+        last_answer = ""
+
+        async with httpx.AsyncClient(timeout=timeout_s) as client:
+            async with client.stream(
+                "POST", self._dify_url(), json=payload, headers=self._dify_headers()
+            ) as resp:
+                if resp.status_code >= 400:
+                    body = await resp.aread()
+                    raise RuntimeError(
+                        f"Dify call failed: {resp.status_code} {body.decode('utf-8', errors='ignore')}"
+                    )
+
+                async for line in resp.aiter_lines():
+                    if not line:
+                        continue
+                    # Dify commonly streams as SSE lines: "data: {...}"
+                    if line.startswith("data:"):
+                        line = line[len("data:") :].strip()
+                    if line == "[DONE]":
+                        break
+
+                    try:
+                        data = json.loads(line)
+                    except Exception:
+                        continue
+
+                    answer = data.get("answer")
+                    if isinstance(answer, str):
+                        if answer.startswith(last_answer):
+                            delta = answer[len(last_answer) :]
+                        else:
+                            # fallback: treat it as delta if server doesn't send cumulative answer
+                            delta = answer
+                        last_answer = answer
+                        if delta:
+                            yield delta
 

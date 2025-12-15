@@ -85,20 +85,16 @@ class Settings(BaseSettings):
     CELERY_RESULT_BACKEND: str | None = None
     
     KNOWLEDGE_STORAGE_ROOT: str = "data"
-    # Embeddings
-    # - provider: "hf_local" (default) uses a local HuggingFace SentenceTransformer model
-    # - provider: "gemini" uses Google Gemini embedding API (requires GEMINI_API_KEY)
-    EMBEDDING_PROVIDER: str = "hf_local"
-    # When EMBEDDING_PROVIDER="hf_local", this is a HuggingFace model id (SentenceTransformers compatible).
-    # When EMBEDDING_PROVIDER="gemini", this is a Gemini model name.
+    # Embeddings (local HF)
     EMBEDDING_MODEL_NAME: str = "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
     # Keep 768 to match existing pgvector schema/migration by default.
     EMBEDDING_DIM: int = 768
     # Local HF embedding options
     HF_EMBEDDING_DEVICE: str = "cpu"  # "cpu" | "cuda" | "mps"
     HF_EMBEDDING_BATCH_SIZE: int = 32
-    GEMINI_API_KEY: str | None = None
-    DIFY_API_KEY: str | None = None
-    DIFY_KB_API_URL: str | None = None
+
+    # Dify (LLM QA)
+    DIFY_API_URL: str = "https://api.dify.ai/v1/chat-messages"
+    DIFY_KB_API_KEY: str | None = None
     
 settings = Settings()  # type: ignore

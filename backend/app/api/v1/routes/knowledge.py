@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
+from fastapi.responses import StreamingResponse
 import uuid
 
 from app.api.v1.deps import get_current_user
@@ -9,6 +11,7 @@ from app.core.db import AsyncSession, get_db
 from app.schemas.common import StandardResponse, ok
 from app.schemas.knowledge import (
     KnowledgeContext,
+    KnowledgeConversationRequest,
     KnowledgeDocumentResponse,
     KnowledgeQueryRequest,
     KnowledgeQueryResponse,
@@ -123,15 +126,72 @@ async def query_knowledge(
         )
         for chunk, document, score in results
     ]
-    chunk_entities = [item[0] for item in results]
+
+    return ok(KnowledgeQueryResponse(contexts=contexts))
+
+
+@router.post(
+    "/conversation/stream",
+    response_class=StreamingResponse,
+)
+async def conversation_stream(
+    payload: KnowledgeConversationRequest,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Server-Sent Events stream:
+    - event: context  (single JSON payload with retrieved contexts)
+    - event: delta    (JSON string chunks)
+    - event: done
+    - event: error
+    """
     try:
-        answer = await knowledge_service.answer_with_dify(
-            question=payload.question, contexts=chunk_entities
+        results = await knowledge_service.search(
+            db=db,
+            user_id=current_user.id,
+            query=payload.question,
+            top_k=payload.top_k,
+            document_id=payload.document_id,
         )
     except RuntimeError as exc:
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)
         ) from exc
 
-    return ok(KnowledgeQueryResponse(answer=answer, contexts=contexts))
+    contexts = [
+        KnowledgeContext(
+            document_id=chunk.document_id,
+            chunk_index=chunk.chunk_index,
+            content=chunk.content,
+            score=float(score),
+            stored_filename=document.stored_filename,
+            original_filename=document.original_filename,
+        )
+        for chunk, document, score in results
+    ]
+
+    async def _sse():
+        # Send contexts first
+        yield "event: context\n" + "data: " + json.dumps(
+            {"contexts": [c.model_dump(mode="json") for c in contexts]}, ensure_ascii=False
+        ) + "\n\n"
+        try:
+            # Pass the retrieved chunks to Dify; Dify will do the final generation.
+            chunk_entities = [item[0] for item in results]
+            async for delta in knowledge_service.stream_answer_with_dify(
+                question=payload.question, contexts=chunk_entities, user_id=current_user.id
+            ):
+                yield "event: delta\n" + "data: " + json.dumps(
+                    {"text": delta}, ensure_ascii=False
+                ) + "\n\n"
+            yield "event: done\n" + "data: " + json.dumps(
+                {"ok": True}, ensure_ascii=False
+            ) + "\n\n"
+        except Exception as e:
+            yield "event: error\n" + "data: " + json.dumps(
+                {"error": str(e)}, ensure_ascii=False
+            ) + "\n\n"
+
+    return StreamingResponse(_sse(), media_type="text/event-stream")
 

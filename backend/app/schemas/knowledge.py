@@ -28,6 +28,14 @@ class KnowledgeQueryRequest(BaseModel):
     document_id: uuid.UUID | None = None
 
 
+class KnowledgeConversationRequest(BaseModel):
+    question: str = Field(..., description="user question for knowledge-base QA")
+    top_k: int = Field(3, ge=1, le=20)
+    document_id: uuid.UUID | None = None
+    # Hard cap to avoid huge prompts (characters, not tokens).
+    max_context_chars: int = Field(12000, ge=1000, le=50000)
+
+
 class KnowledgeContext(BaseModel):
     document_id: uuid.UUID
     chunk_index: int
@@ -38,6 +46,5 @@ class KnowledgeContext(BaseModel):
 
 
 class KnowledgeQueryResponse(BaseModel):
-    answer: str
     contexts: list[KnowledgeContext]
 
