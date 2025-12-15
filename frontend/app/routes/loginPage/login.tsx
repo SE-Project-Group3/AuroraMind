@@ -100,7 +100,8 @@ export default function LoginPage() {
 
                             <RegisterForm
                                 onSuccess={() => {
-                                    // 注册成功后，关闭弹窗，也可以在这里顺便自动填充用户名之类的
+                                    console.log("register success!");
+                                    // navigate("/app")
                                     setShowRegister(false);
                                 }}
                             />

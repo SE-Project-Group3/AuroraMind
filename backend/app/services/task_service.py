@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.task import Task
 from app.models.task_list import TaskList
+from app.models.base import utcnow
 from app.services.goal_service import GoalService
 from app.schemas.task import TaskCreate, TaskUpdate
 from app.schemas.task_list import TaskListCreate, TaskListUpdate
@@ -26,7 +27,14 @@ class TaskListService:
     ) -> TaskList | None:
         existing_task_list = await self.get_task_list_by_name(db, task_list_data.name, user_id)
         if existing_task_list:
-            return None
+            # Append suffix to avoid collision
+            base = task_list_data.name
+            suffix = 1
+            candidate = f"{base} ({suffix})"
+            while await self.get_task_list_by_name(db, candidate, user_id):
+                suffix += 1
+                candidate = f"{base} ({suffix})"
+            task_list_data.name = candidate
 
         if task_list_data.goal_id:
             goal = await self.goal_service.get_goal(db, task_list_data.goal_id, user_id)
@@ -151,8 +159,7 @@ class TaskService:
             task_list_id=task_data.task_list_id,
             end_date=task_data.end_date,
         )
-        if task_data.start_date:
-            new_task.start_date = task_data.start_date
+        new_task.start_date = task_data.start_date
 
         db.add(new_task)
         await db.commit()

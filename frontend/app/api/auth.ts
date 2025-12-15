@@ -63,3 +63,10 @@ export async function register(payload: RegisterPayload): Promise<RegisterRespon
     );
     return res.data;
 }
+
+// logout
+export function logout() {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("user");
+    window.location.href = "/";
+}

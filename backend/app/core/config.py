@@ -83,6 +83,9 @@ class Settings(BaseSettings):
     # Celery (defaults to Redis derived from REDIS_* if not set explicitly)
     CELERY_BROKER_URL: str | None = None
     CELERY_RESULT_BACKEND: str | None = None
+    # External AI (Dify/Gemini)
+    DIFY_API_BASE: str | None = None
+    DIFY_API_KEY: str | None = None
     
     KNOWLEDGE_STORAGE_ROOT: str = "data"
     # Embeddings (local HF)
