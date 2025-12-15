@@ -5,16 +5,39 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.api.v1.deps import get_current_user
 from app.core.db import AsyncSession, get_db
-from app.schemas.breakdown import BreakdownRequest, BreakdownResponse
+from app.schemas.breakdown import (
+    BreakdownRequest,
+    BreakdownResponse,
+    BreakdownSelectionRequest,
+    BreakdownSelectionResponse,
+)
 from app.schemas.common import StandardResponse, ok
 from app.schemas.goal import GoalCreate, GoalResponse, GoalUpdate
+from app.schemas.task import TaskCreate
+from app.schemas.task_list import TaskListCreate
 from app.schemas.user import UserResponse
 from app.services.ai_service import DifyAIService
 from app.services.goal_service import GoalService
+from app.services.task_service import TaskListService, TaskService
 
 router = APIRouter(prefix="/goals", tags=["goals"])
 goal_service = GoalService()
 ai_service = DifyAIService()
+task_service = TaskService()
+task_list_service = TaskListService()
+
+
+async def _generate_task_list_name(
+    db: AsyncSession, user_id: uuid.UUID, goal_name: str | None
+) -> str:
+    base = (goal_name or "Breakdown").strip() or "Breakdown"
+    base = f"{base} - breakdown"
+    candidate = base
+    suffix = 1
+    while await task_list_service.get_task_list_by_name(db, candidate, user_id):
+        candidate = f"{base} ({suffix})"
+        suffix += 1
+    return candidate
 
 
 @router.get("", response_model=StandardResponse[list[GoalResponse]])
@@ -146,3 +169,74 @@ async def breakdown_goal_text(
         ) from exc
 
     return ok(BreakdownResponse(goal_id=goal_id, items=items))
+
+
+@router.post(
+    "/{goal_id}/breakdown/selection",
+    response_model=StandardResponse[BreakdownSelectionResponse],
+    summary="Persist selected breakdown items into a task list",
+)
+async def persist_breakdown_selection(
+    goal_id: uuid.UUID,
+    payload: BreakdownSelectionRequest,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> StandardResponse[BreakdownSelectionResponse]:
+    goal = await goal_service.get_goal(db, goal_id, current_user.id)
+    if not goal:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Goal not found"
+        )
+
+    # Use existing task list or create a new one under the goal
+    task_list = None
+    if payload.task_list_id:
+        task_list = await task_list_service.get_task_list(
+            db, payload.task_list_id, current_user.id
+        )
+        if not task_list:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Task list not found"
+            )
+        if task_list.goal_id != goal_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Task list does not belong to this goal",
+            )
+    else:
+        name = payload.task_list_name
+        if not name:
+            name = await _generate_task_list_name(db, current_user.id, goal.name)
+        new_task_list = await task_list_service.create_task_list(
+            db,
+            current_user.id,
+            TaskListCreate(name=name, goal_id=goal_id),
+        )
+        if not new_task_list:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Task list already exists",
+            )
+        task_list = new_task_list
+
+    # Create tasks from selected items
+    created_task_ids: list[uuid.UUID] = []
+    for item in payload.items:
+        task = await task_service.create_task(
+            db,
+            current_user.id,
+            task_data=TaskCreate(
+                name=item.text,
+                is_completed=False,
+                task_list_id=task_list.id,
+            ),
+        )
+        created_task_ids.append(task.id)
+
+    return ok(
+        BreakdownSelectionResponse(
+            goal_id=goal_id,
+            task_list=task_list.id,
+            tasks=created_task_ids,
+        )
+    )
