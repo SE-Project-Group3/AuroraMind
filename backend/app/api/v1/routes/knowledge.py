@@ -69,6 +69,26 @@ async def download_document(
     )
     return FileResponse(path, filename=path.name)
 
+@router.delete(
+    "/documents/{document_id}",
+    response_model=StandardResponse[None],
+)
+async def delete_document(
+    document_id: str,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> StandardResponse[None]:
+    try:
+        await knowledge_service.delete_document(db, current_user.id, uuid.UUID(document_id))
+    except HTTPException:
+        raise
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)
+        ) from exc
+
+    return ok(None)
+
 
 @router.post(
     "/query",

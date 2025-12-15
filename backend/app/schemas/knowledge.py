@@ -13,6 +13,9 @@ class KnowledgeDocumentResponse(BaseModel):
     mime_type: str | None = None
     file_size: int
     status: str
+    ingest_progress: int = 0
+    chunk_count: int = 0
+    error_message: str | None = None
     created_at: datetime
 
     class Config:

@@ -9,12 +9,13 @@ from fastapi import UploadFile, HTTPException, status
 import httpx
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.models.knowledge_chunk import KnowledgeChunk
 from app.models.knowledge_document import KnowledgeDocument
 from app.services.embedding_service import EmbeddingService
-
+from app.services.knowledge_ingestion_utils import extract_text_from_path, split_text
 
 def _make_storage_dir(user_id: uuid.UUID) -> Path:
     base = Path(settings.KNOWLEDGE_STORAGE_ROOT).expanduser().resolve()
@@ -35,24 +36,6 @@ def _build_unique_filename(target_dir: Path, original_name: str) -> tuple[str, P
     timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S%f")
     stored = f"{stem}_{timestamp}{suffix}"
     return stored, target_dir / stored
-
-
-def _split_text(
-    text: str, chunk_size: int = 800, overlap: int = 200
-) -> list[str]:
-    if not text:
-        return []
-
-    chunks: list[str] = []
-    start = 0
-    length = len(text)
-    while start < length:
-        end = min(start + chunk_size, length)
-        chunk = text[start:end].strip()
-        if chunk:
-            chunks.append(chunk)
-        start = end - overlap if end - overlap > start else end
-    return chunks
 
 
 class KnowledgeService:
@@ -83,34 +66,18 @@ class KnowledgeService:
             mime_type=file.content_type,
             file_size=len(content),
             status="processing",
+            ingest_progress=0,
+            chunk_count=0,
+            error_message=None,
         )
         db.add(document)
         await db.commit()
         await db.refresh(document)
 
-        # try:
-        #     text = target_path.read_text(encoding="utf-8", errors="ignore")
-        #     chunks = _split_text(text)
-        #     embeddings = await self._get_embedding_service().embed_texts(chunks)
+        # Enqueue ingestion as a Celery task so the frontend can poll status/progress.
+        from app.tasks.knowledge_ingest import ingest_document
 
-        #     for idx, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
-        #         db.add(
-        #             KnowledgeChunk(
-        #                 document_id=document.id,
-        #                 chunk_index=idx,
-        #                 content=chunk,
-        #                 embedding=embedding,
-        #             )
-        #         )
-
-        #     document.status = "ready"
-        #     await db.commit()
-        #     await db.refresh(document)
-        # except Exception:
-        #     document.status = "failed"
-        #     await db.commit()
-        #     await db.refresh(document)
-        #     raise
+        ingest_document.delay(str(document.id))  # type: ignore[attr-defined]
 
         return document
 
@@ -140,6 +107,40 @@ class KnowledgeService:
         )
         result = await db.execute(stmt)
         return result.scalars().all()
+
+    async def delete_document(
+        self, db: AsyncSession, user_id: uuid.UUID, document_id: uuid.UUID
+    ) -> None:
+        stmt = (
+            select(KnowledgeDocument)
+            .options(selectinload(KnowledgeDocument.chunks))
+            .where(
+                KnowledgeDocument.id == document_id,
+                KnowledgeDocument.user_id == user_id,
+                KnowledgeDocument.is_deleted.is_(False),
+            )
+        )
+        result = await db.execute(stmt)
+        document = result.scalar_one_or_none()
+        if not document:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Document not found"
+            )
+
+        # Soft delete DB rows
+        document.soft_delete()
+        for chunk in document.chunks:
+            chunk.soft_delete()
+
+        await db.commit()
+
+        # Best-effort delete file on disk (ignore failures)
+        try:
+            path = Path(document.file_path)
+            if path.exists():
+                path.unlink()
+        except Exception:
+            pass
 
     async def ensure_document_path(
         self, db: AsyncSession, user_id: uuid.UUID, document_id: uuid.UUID

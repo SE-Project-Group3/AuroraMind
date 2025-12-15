@@ -79,10 +79,24 @@ class Settings(BaseSettings):
     REDIS_PORT: int = 6379
     REDIS_PASSWORD: str = ""
     REDIS_DB: int = 0
+
+    # Celery (defaults to Redis derived from REDIS_* if not set explicitly)
+    CELERY_BROKER_URL: str | None = None
+    CELERY_RESULT_BACKEND: str | None = None
     
     KNOWLEDGE_STORAGE_ROOT: str = "data"
-    EMBEDDING_MODEL_NAME: str
-    EMBEDDING_DIM: int
+    # Embeddings
+    # - provider: "hf_local" (default) uses a local HuggingFace SentenceTransformer model
+    # - provider: "gemini" uses Google Gemini embedding API (requires GEMINI_API_KEY)
+    EMBEDDING_PROVIDER: str = "hf_local"
+    # When EMBEDDING_PROVIDER="hf_local", this is a HuggingFace model id (SentenceTransformers compatible).
+    # When EMBEDDING_PROVIDER="gemini", this is a Gemini model name.
+    EMBEDDING_MODEL_NAME: str = "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
+    # Keep 768 to match existing pgvector schema/migration by default.
+    EMBEDDING_DIM: int = 768
+    # Local HF embedding options
+    HF_EMBEDDING_DEVICE: str = "cpu"  # "cpu" | "cuda" | "mps"
+    HF_EMBEDDING_BATCH_SIZE: int = 32
     GEMINI_API_KEY: str | None = None
     DIFY_API_KEY: str | None = None
     DIFY_KB_API_URL: str | None = None

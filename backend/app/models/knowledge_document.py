@@ -4,7 +4,7 @@ import uuid
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Integer, String, ForeignKey
+from sqlalchemy import Integer, String, ForeignKey, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -41,6 +41,15 @@ class KnowledgeDocument(BaseModel):
     )
     status: Mapped[str] = mapped_column(
         String(32), nullable=False, default="ready", comment="ingestion status"
+    )
+    ingest_progress: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, comment="ingestion progress percent (0-100)"
+    )
+    chunk_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, comment="total chunks generated for this document"
+    )
+    error_message: Mapped[str | None] = mapped_column(
+        Text, nullable=True, comment="ingestion error (if failed)"
     )
 
     chunks: Mapped[list["KnowledgeChunk"]] = relationship(
