@@ -56,7 +56,28 @@
    docker compose exec postgres psql -U aurora -d auroramind
    ```
 
-6. **Initialize the database / run Alembic migrations**
+6. **(Required) Install `pgvector` inside the Postgres container (Knowledge Base depends on it)**
+
+   The Knowledge Base uses Postgres `vector` types and indexes. Our Alembic migrations already run:
+   `CREATE EXTENSION IF NOT EXISTS vector`
+   but **the extension must be installed in the Postgres image/container first**.
+
+   - Enter the running Postgres container:
+
+   ```bash
+   docker compose exec postgres bash
+   ```
+
+   - Inside the container, install `pgvector` for Postgres 16:
+
+   ```bash
+   apt-get update
+   apt-get install -y postgresql-16-pgvector
+   ```
+
+   > Tip: If you rebuild containers frequently, consider baking `pgvector` into a custom Postgres image (or switching to a pgvector-enabled Postgres image) to avoid repeating the `apt-get` steps.
+
+7. **Initialize the database / run Alembic migrations**
 
    ```bash
    alembic upgrade head
@@ -64,13 +85,13 @@
 
    Execute this inside the activated virtual environment. The first run creates all tables; subsequent runs keep the schema up to date.
 
-7. **Start the API**
+8. **Start the API**
    ```bash
    uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 8080
    ```
    The server listens on `http://127.0.0.1:8080` by default.
 
-8. **Start Celery worker (Knowledge ingestion)**
+9. **Start Celery worker (Knowledge ingestion)**
 
    Celery consumes ingestion jobs from Redis and updates `knowledge_documents.ingest_progress`.
 
