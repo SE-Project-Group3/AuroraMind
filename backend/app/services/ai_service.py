@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import json
 import re
-from typing import Any
+from typing import Any, AsyncIterator
 
 import httpx
 
@@ -101,3 +102,85 @@ class DifyAIService:
             for idx, item in enumerate(items[1:], start=1):
                 item.order = idx
         return items
+
+    async def stream_knowledgebase_chat(
+        self,
+        *,
+        query: str,
+        user_id: str,
+        conversation_id: str | None = None,
+        inputs: dict[str, Any] | None = None,
+        timeout_s: float = 60,
+    ) -> AsyncIterator[dict[str, Any]]:
+        """
+        Call Dify knowledge base chat with response_mode="streaming".
+
+        Full URL: f"{self.api_base}/chat-messages"
+
+        Yields events:
+        - {"type": "meta", "conversation_id": "..."}
+        - {"type": "delta", "text": "..."}
+        """
+        if not self.api_base:
+            msg = "DIFY_API_BASE is not configured"
+            raise RuntimeError(msg)
+
+        payload: dict[str, Any] = {
+            "inputs": inputs or {},
+            "query": query,
+            "response_mode": "streaming",
+            "user": user_id,
+            "conversation_id": conversation_id,
+        }
+
+        last_answer = ""
+        sent_conversation_id: str | None = None
+
+        if conversation_id:
+            sent_conversation_id = conversation_id
+            yield {"type": "meta", "conversation_id": conversation_id}
+
+        async with httpx.AsyncClient(timeout=timeout_s) as client:
+            async with client.stream(
+                "POST",
+                f"{self.api_base}/chat-messages",
+                json=payload,
+                headers=self._get_knowledgebase_headers(),
+            ) as resp:
+                if resp.status_code >= 400:
+                    body = await resp.aread()
+                    raise RuntimeError(
+                        f"Dify KB call failed: {resp.status_code} {body.decode('utf-8', errors='ignore')}"
+                    )
+
+                async for line in resp.aiter_lines():
+                    if not line:
+                        continue
+                    if line.startswith("data:"):
+                        line = line[len("data:") :].strip()
+                    if line == "[DONE]":
+                        break
+
+                    try:
+                        data = json.loads(line)
+                    except Exception:
+                        continue
+
+                    cid = data.get("conversation_id")
+                    if (
+                        isinstance(cid, str)
+                        and cid
+                        and sent_conversation_id is None
+                    ):
+                        sent_conversation_id = cid
+                        yield {"type": "meta", "conversation_id": cid}
+
+                    answer = data.get("answer")
+                    if isinstance(answer, str):
+                        if answer.startswith(last_answer):
+                            delta = answer[len(last_answer) :]
+                        else:
+                            delta = answer
+                        last_answer = answer
+                        if delta:
+                            yield {"type": "delta", "text": delta}

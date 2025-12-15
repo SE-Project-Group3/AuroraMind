@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
 from fastapi.responses import StreamingResponse
@@ -193,66 +192,16 @@ async def conversation_stream(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Server-Sent Events stream:
-    - event: context  (single JSON payload with retrieved contexts)
-    - event: delta    (JSON string chunks)
-    - event: done
-    - event: error
-    """
-    try:
-        results = await knowledge_service.search(
+    return StreamingResponse(
+        knowledge_service.conversation_sse(
             db=db,
             user_id=current_user.id,
-            query=payload.question,
+            question=payload.question,
             top_k=payload.top_k,
             document_id=payload.document_id,
-        )
-    except RuntimeError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)
-        ) from exc
-
-    contexts = [
-        KnowledgeContext(
-            document_id=chunk.document_id,
-            chunk_index=chunk.chunk_index,
-            content=chunk.content,
-            score=float(score),
-            stored_filename=document.stored_filename,
-            original_filename=document.original_filename,
-        )
-        for chunk, document, score in results
-    ]
-
-    async def _sse():
-        yield "event: context\n" + "data: " + json.dumps(
-            {"contexts": [c.model_dump(mode="json") for c in contexts]}, ensure_ascii=False
-        ) + "\n\n"
-        try:
-            chunk_entities = [item[0] for item in results]
-            async for event in knowledge_service.stream_chat_with_dify(
-                question=payload.question,
-                contexts=chunk_entities,
-                user_id=current_user.id,
-                conversation_id=payload.conversation_id,
-            ):
-                if event.get("type") == "meta":
-                    yield "event: meta\n" + "data: " + json.dumps(
-                        {"conversation_id": event.get("conversation_id")},
-                        ensure_ascii=False,
-                    ) + "\n\n"
-                elif event.get("type") == "delta":
-                    yield "event: delta\n" + "data: " + json.dumps(
-                        {"text": event.get("text")}, ensure_ascii=False
-                    ) + "\n\n"
-            yield "event: done\n" + "data: " + json.dumps(
-                {"ok": True}, ensure_ascii=False
-            ) + "\n\n"
-        except Exception as e:
-            yield "event: error\n" + "data: " + json.dumps(
-                {"error": str(e)}, ensure_ascii=False
-            ) + "\n\n"
-
-    return StreamingResponse(_sse(), media_type="text/event-stream")
+            conversation_id=payload.conversation_id,
+            max_context_chars=payload.max_context_chars,
+        ),
+        media_type="text/event-stream",
+    )
 

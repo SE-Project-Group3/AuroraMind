@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Sequence, AsyncIterator, Any
 
 from fastapi import UploadFile, HTTPException, status
-import httpx
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -16,6 +15,8 @@ from app.core.config import settings
 from app.models.goal import Goal
 from app.models.knowledge_chunk import KnowledgeChunk
 from app.models.knowledge_document import KnowledgeDocument
+from app.schemas.knowledge import KnowledgeContext
+from app.services.ai_service import DifyAIService
 from app.services.embedding_service import EmbeddingService
 
 def _make_storage_dir(user_id: uuid.UUID) -> Path:
@@ -40,13 +41,23 @@ def _build_unique_filename(target_dir: Path, original_name: str) -> tuple[str, P
 
 
 class KnowledgeService:
-    def __init__(self, embedding_service: EmbeddingService | None = None) -> None:
+    def __init__(
+        self,
+        embedding_service: EmbeddingService | None = None,
+        ai_service: DifyAIService | None = None,
+    ) -> None:
         self.embedding_service = embedding_service
+        self.ai_service = ai_service
 
     def _get_embedding_service(self) -> EmbeddingService:
         if self.embedding_service is None:
             self.embedding_service = EmbeddingService()
         return self.embedding_service
+
+    def _get_ai_service(self) -> DifyAIService:
+        if self.ai_service is None:
+            self.ai_service = DifyAIService()
+        return self.ai_service
 
     async def upload_document(
         self,
@@ -278,111 +289,119 @@ class KnowledgeService:
         rows = result.all()
         return [(row[0], row[1], float(row[2])) for row in rows]
 
-    def _dify_url(self) -> str:
-        url = settings.DIFY_API_BASE
-        if not url:
-            raise RuntimeError("Dify API url not configured")
-        return url
+    def _build_context_text(
+        self, contexts: list[KnowledgeChunk], *, max_chars: int
+    ) -> str:
+        if max_chars <= 0:
+            return ""
+        parts: list[str] = []
+        used = 0
+        for c in contexts:
+            if not c.content:
+                continue
+            chunk = c.content
+            remaining = max_chars - used
+            if remaining <= 0:
+                break
+            if len(chunk) > remaining:
+                chunk = chunk[:remaining]
+            parts.append(chunk)
+            used += len(chunk)
+            if used >= max_chars:
+                break
+        return "\n\n".join(parts)
 
-    def _dify_headers(self) -> dict[str, str]:
-        if not settings.DIFY_BR_API_KEY:
-            raise RuntimeError("Dify BR Chat Application API key not configured")
-        return {
-            "Authorization": f"Bearer {settings.DIFY_BR_API_KEY}",
-            "Content-Type": "application/json",
-        }
-
-    async def stream_answer_with_dify(
+    async def conversation_sse(
         self,
-        question: str,
-        contexts: list[KnowledgeChunk],
-        user_id: uuid.UUID,
-        conversation_id: str | None = None,
         *,
+        db: AsyncSession,
+        user_id: uuid.UUID,
+        question: str,
+        top_k: int = 3,
+        document_id: uuid.UUID | None = None,
+        conversation_id: str | None = None,
+        max_context_chars: int = 12000,
         timeout_s: float = 60,
     ) -> AsyncIterator[str]:
-        async for event in self.stream_chat_with_dify(
-            question=question,
-            contexts=contexts,
-            user_id=user_id,
-            conversation_id=conversation_id,
-            timeout_s=timeout_s,
-        ):
-            if event.get("type") == "delta":
-                text = event.get("text")
-                if isinstance(text, str) and text:
-                    yield text
-
-    async def stream_chat_with_dify(
-        self,
-        *,
-        question: str,
-        contexts: list[KnowledgeChunk],
-        user_id: uuid.UUID,
-        conversation_id: str | None = None,
-        timeout_s: float = 60,
-    ) -> AsyncIterator[dict[str, Any]]:
         """
-        Call Dify with response_mode="streaming".
-        Yields events:
-        - {"type": "meta", "conversation_id": "..."}
-        - {"type": "delta", "text": "..."}
+        Server-Sent Events stream generator:
+        - event: context  (single JSON payload with retrieved contexts)
+        - event: meta     (conversation_id)
+        - event: delta    (JSON string chunks)
+        - event: done
+        - event: error
         """
-        context_text = "\n\n".join([c.content for c in contexts])
-        payload = {
-            "inputs": {},
-            "query": "question:" + question + "\n\ncontext:" + context_text,
-            "response_mode": "streaming",
-            "user": str(user_id),
-            "conversation_id": conversation_id,
-        }
+        try:
+            results = await self.search(
+                db=db,
+                user_id=user_id,
+                query=question,
+                top_k=top_k,
+                document_id=document_id,
+            )
+            contexts = [
+                KnowledgeContext(
+                    document_id=chunk.document_id,
+                    chunk_index=chunk.chunk_index,
+                    content=chunk.content,
+                    score=float(score),
+                    stored_filename=document.stored_filename,
+                    original_filename=document.original_filename,
+                )
+                for chunk, document, score in results
+            ]
 
-        last_answer = ""
-        sent_conversation_id: str | None = None
+            yield (
+                "event: context\n"
+                + "data: "
+                + json.dumps(
+                    {"contexts": [c.model_dump(mode="json") for c in contexts]},
+                    ensure_ascii=False,
+                )
+                + "\n\n"
+            )
 
-        if conversation_id:
-            sent_conversation_id = conversation_id
-            yield {"type": "meta", "conversation_id": conversation_id}
+            chunk_entities = [item[0] for item in results]
+            context_text = self._build_context_text(
+                chunk_entities, max_chars=max_context_chars
+            )
+            dify_query = "question:" + question + "\n\ncontext:" + context_text
 
-        async with httpx.AsyncClient(timeout=timeout_s) as client:
-            async with client.stream(
-                "POST", self._dify_url(), json=payload, headers=self._dify_headers()
-            ) as resp:
-                if resp.status_code >= 400:
-                    body = await resp.aread()
-                    raise RuntimeError(
-                        f"Dify call failed: {resp.status_code} {body.decode('utf-8', errors='ignore')}"
+            async for event in self._get_ai_service().stream_knowledgebase_chat(
+                query=dify_query,
+                user_id=str(user_id),
+                conversation_id=conversation_id,
+                timeout_s=timeout_s,
+            ):
+                if event.get("type") == "meta":
+                    yield (
+                        "event: meta\n"
+                        + "data: "
+                        + json.dumps(
+                            {"conversation_id": event.get("conversation_id")},
+                            ensure_ascii=False,
+                        )
+                        + "\n\n"
+                    )
+                elif event.get("type") == "delta":
+                    yield (
+                        "event: delta\n"
+                        + "data: "
+                        + json.dumps({"text": event.get("text")}, ensure_ascii=False)
+                        + "\n\n"
                     )
 
-                async for line in resp.aiter_lines():
-                    if not line:
-                        continue
-                    if line.startswith("data:"):
-                        line = line[len("data:") :].strip()
-                    if line == "[DONE]":
-                        break
-
-                    try:
-                        data = json.loads(line)
-                    except Exception:
-                        continue
-
-                    cid = data.get("conversation_id")
-                    if (
-                        isinstance(cid, str)
-                        and cid
-                        and sent_conversation_id is None
-                    ):
-                        sent_conversation_id = cid
-                        yield {"type": "meta", "conversation_id": cid}
-
-                    answer = data.get("answer")
-                    if isinstance(answer, str):
-                        if answer.startswith(last_answer):
-                            delta = answer[len(last_answer) :]
-                        else:
-                            delta = answer
-                        last_answer = answer
-                        if delta:
-                            yield {"type": "delta", "text": delta}
+            yield (
+                "event: done\n"
+                + "data: "
+                + json.dumps({"ok": True}, ensure_ascii=False)
+                + "\n\n"
+            )
+        except Exception as e:
+            yield (
+                "event: error\n"
+                + "data: "
+                + json.dumps({"error": str(e)}, ensure_ascii=False)
+                + "\n\n"
+            )
 
