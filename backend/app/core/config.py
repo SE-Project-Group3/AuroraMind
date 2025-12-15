@@ -79,6 +79,10 @@ class Settings(BaseSettings):
     REDIS_PORT: int = 6379
     REDIS_PASSWORD: str = ""
     REDIS_DB: int = 0
+
+    # External AI (Dify/Gemini)
+    DIFY_API_BASE: str | None = None
+    DIFY_API_KEY: str | None = None
     
 
 settings = Settings()  # type: ignore

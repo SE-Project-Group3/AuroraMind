@@ -27,11 +27,10 @@ class TaskResponse(TaskBase):
     id: uuid.UUID
     user_id: uuid.UUID
     task_list_id: uuid.UUID
-    start_date: datetime
-    end_date: datetime
+    start_date: datetime | None = None
+    end_date: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
     class Config:
         from_attributes = True
-
