@@ -16,7 +16,7 @@ from app.core.config import settings
 from app.models.knowledge_chunk import KnowledgeChunk
 from app.models.knowledge_document import KnowledgeDocument
 from app.services.embedding_service import EmbeddingService
-from app.services.knowledge_ingestion_utils import extract_text_from_path, split_text
+from app.utils.knowledge_ingestion import extract_text_from_path, split_text
 
 def _make_storage_dir(user_id: uuid.UUID) -> Path:
     base = Path(settings.KNOWLEDGE_STORAGE_ROOT).expanduser().resolve()
@@ -75,7 +75,6 @@ class KnowledgeService:
         await db.commit()
         await db.refresh(document)
 
-        # Enqueue ingestion as a Celery task so the frontend can poll status/progress.
         from app.tasks.knowledge_ingest import ingest_document
 
         ingest_document.delay(str(document.id))  # type: ignore[attr-defined]
@@ -128,14 +127,12 @@ class KnowledgeService:
                 status_code=status.HTTP_404_NOT_FOUND, detail="Document not found"
             )
 
-        # Soft delete DB rows
         document.soft_delete()
         for chunk in document.chunks:
             chunk.soft_delete()
 
         await db.commit()
 
-        # Best-effort delete file on disk (ignore failures)
         try:
             path = Path(document.file_path)
             if path.exists():
@@ -249,7 +246,6 @@ class KnowledgeService:
                 async for line in resp.aiter_lines():
                     if not line:
                         continue
-                    # Dify commonly streams as SSE lines: "data: {...}"
                     if line.startswith("data:"):
                         line = line[len("data:") :].strip()
                     if line == "[DONE]":
@@ -265,7 +261,6 @@ class KnowledgeService:
                         if answer.startswith(last_answer):
                             delta = answer[len(last_answer) :]
                         else:
-                            # fallback: treat it as delta if server doesn't send cumulative answer
                             delta = answer
                         last_answer = answer
                         if delta:

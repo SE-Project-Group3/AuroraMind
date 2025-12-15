@@ -8,11 +8,12 @@ from sqlalchemy import update
 
 from app.core.celery_app import celery_app
 from app.core.db import Sync_session
+from app.core.config import settings
 import app.models  # noqa: F401  (populate SQLAlchemy metadata)
 from app.models.knowledge_chunk import KnowledgeChunk
 from app.models.knowledge_document import KnowledgeDocument
 from app.services.embedding_service import EmbeddingService
-from app.services.knowledge_ingestion_utils import extract_text_from_path, split_text
+from app.utils.knowledge_ingestion import extract_text_from_path, split_text
 
 
 def _run(coro):
@@ -38,7 +39,11 @@ def ingest_document(self, document_id: str) -> None:
 
             path = Path(document.file_path)
             text = extract_text_from_path(path, document.mime_type)
-            chunks = split_text(text)
+            chunks = split_text(
+                text,
+                chunk_size=settings.KNOWLEDGE_CHUNK_SIZE,
+                overlap=settings.KNOWLEDGE_CHUNK_OVERLAP,
+            )
             total = len(chunks)
             document.chunk_count = total
             db.commit()

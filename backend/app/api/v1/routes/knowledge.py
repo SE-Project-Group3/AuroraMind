@@ -7,6 +7,7 @@ from fastapi.responses import StreamingResponse
 import uuid
 
 from app.api.v1.deps import get_current_user
+from app.core.config import settings
 from app.core.db import AsyncSession, get_db
 from app.schemas.common import StandardResponse, ok
 from app.schemas.knowledge import (
@@ -119,7 +120,7 @@ async def query_knowledge(
         KnowledgeContext(
             document_id=chunk.document_id,
             chunk_index=chunk.chunk_index,
-            content=chunk.content,
+            content=chunk.content[: settings.KNOWLEDGE_CONTEXT_PREVIEW_CHARS],
             score=float(score),
             stored_filename=document.stored_filename,
             original_filename=document.original_filename,
@@ -172,12 +173,10 @@ async def conversation_stream(
     ]
 
     async def _sse():
-        # Send contexts first
         yield "event: context\n" + "data: " + json.dumps(
             {"contexts": [c.model_dump(mode="json") for c in contexts]}, ensure_ascii=False
         ) + "\n\n"
         try:
-            # Pass the retrieved chunks to Dify; Dify will do the final generation.
             chunk_entities = [item[0] for item in results]
             async for delta in knowledge_service.stream_answer_with_dify(
                 question=payload.question, contexts=chunk_entities, user_id=current_user.id

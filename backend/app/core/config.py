@@ -93,6 +93,12 @@ class Settings(BaseSettings):
     HF_EMBEDDING_DEVICE: str = "cpu"  # "cpu" | "cuda" | "mps"
     HF_EMBEDDING_BATCH_SIZE: int = 32
 
+    # Knowledge chunking (tuned for RAG QA; units are characters, not tokens)
+    KNOWLEDGE_CHUNK_SIZE: int = 700
+    KNOWLEDGE_CHUNK_OVERLAP: int = 120
+    # What we send back to frontend as "context preview" (avoid huge UI payloads)
+    KNOWLEDGE_CONTEXT_PREVIEW_CHARS: int = 400
+
     # Dify (LLM QA)
     DIFY_API_URL: str = "https://api.dify.ai/v1/chat-messages"
     DIFY_KB_API_KEY: str | None = None
