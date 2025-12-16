@@ -34,7 +34,85 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+  
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: auroramind-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # App settings (dev defaults). Override in your local environment as needed.
+      DEBUG: "true"
+      FRONTEND_HOST: "http://localhost:5173"
+      BACKEND_CORS_ORIGINS: "http://localhost:5173"
+      JWT_SECRET_KEY: "changeme-in-dev"
+
+      # Database
+      POSTGRES_SERVER: "postgres"
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: "aurora"
+      POSTGRES_PASSWORD: "password"
+      POSTGRES_DB: "auroramind"
+
+      # Redis / Celery
+      REDIS_HOST: "redis"
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ""
+      REDIS_DB: "0"
+
+      # Storage
+      KNOWLEDGE_STORAGE_ROOT: "/app/data"
+    volumes:
+      # Live-reload dev experience
+      - ./:/app
+      # Keep HF cache between container restarts to avoid repeated downloads
+      - hf_cache:/root/.cache/huggingface
+      # Persist uploaded/ingested documents locally
+      - ./data:/app/data
+    ports:
+      - "8080:8080"
+    command: ["uv", "run", "uvicorn", "app.main:app", "--reload", "--host", "0.0.0.0", "--port", "8080"]
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: auroramind-worker
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    environment:
+      DEBUG: "true"
+      JWT_SECRET_KEY: "changeme-in-dev"
+
+      POSTGRES_SERVER: "postgres"
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: "aurora"
+      POSTGRES_PASSWORD: "password"
+      POSTGRES_DB: "auroramind"
+
+      REDIS_HOST: "redis"
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ""
+      REDIS_DB: "0"
+
+      KNOWLEDGE_STORAGE_ROOT: "/app/data"
+    volumes:
+      - ./:/app
+      - hf_cache:/root/.cache/huggingface
+      - ./data:/app/data
+    command: ["uv", "run", "celery", "-A", "app.core.celery_app:celery_app", "worker", "-l", "info"]
 
 volumes:
   postgres_data:
   redis_data:
+  hf_cache:

@@ -1,4 +1,4 @@
-.PHONY: help install infra-up infra-down infra-logs migrate api worker dev stop
+.PHONY: help install up down ps logs infra-up infra-down infra-logs migrate api worker dev stop
 
 SHELL := /bin/bash
 
@@ -9,8 +9,12 @@ CELERY_APP ?= app.core.celery_app:celery_app
 help:
 	@echo "Targets:"
 	@echo "  make install     - uv sync"
-	@echo "  make infra-up    - start postgres+redis via docker compose"
-	@echo "  make infra-down  - stop postgres+redis"
+	@echo "  make up          - docker compose up (postgres+redis+api+worker)"
+	@echo "  make down        - docker compose down"
+	@echo "  make ps          - docker compose ps"
+	@echo "  make logs        - docker compose logs -f"
+	@echo "  make infra-up    - start postgres+redis only"
+	@echo "  make infra-down  - stop postgres+redis only"
 	@echo "  make migrate     - alembic upgrade head"
 	@echo "  make api         - start FastAPI (uvicorn --reload)"
 	@echo "  make worker      - start Celery worker"
@@ -19,17 +23,30 @@ help:
 install:
 	uv sync
 
+up:
+	docker compose up -d --build
+
+down:
+	docker compose down
+
+ps:
+	docker compose ps
+
+logs:
+	docker compose logs -f --tail=200
+
 infra-up:
-	docker compose up -d
+	docker compose up -d postgres redis
 
 infra-down:
-	docker compose down
+	docker compose stop postgres redis
 
 infra-logs:
 	docker compose logs -f --tail=200
 
 migrate:
-	alembic upgrade head
+	# Run migrations inside the API container image (uses same env as compose).
+	docker compose run --rm api alembic upgrade head
 
 api:
 	uv run uvicorn app.main:app --reload --host $(API_HOST) --port $(API_PORT)
