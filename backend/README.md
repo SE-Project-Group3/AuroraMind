@@ -56,7 +56,7 @@
    docker compose exec postgres psql -U aurora -d auroramind
    ```
 
-6. **(Required) Install `pgvector` inside the Postgres container (Knowledge Base depends on it)**
+6. **(maybe obsolete, replaced by pgvector image) Install `pgvector` inside the Postgres container (Knowledge Base depends on it)**
 
    The Knowledge Base uses Postgres `vector` types and indexes. Our Alembic migrations already run:
    `CREATE EXTENSION IF NOT EXISTS vector`

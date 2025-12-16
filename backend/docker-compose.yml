@@ -3,7 +3,7 @@ name: auroramind-backend
 
 services:
   postgres:
-    image: postgres:16
+    image: pgvector/pgvector:pg16-trixie
     restart: unless-stopped
     container_name: auroramind-postgres
     environment:
