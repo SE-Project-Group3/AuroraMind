@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Sequence
 
-from sqlalchemy import and_, select
+from sqlalchemy import and_, select, func
 from sqlalchemy.sql import Select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -197,6 +197,53 @@ class TaskService:
         )
         result = await db.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def count_pending_tasks(
+        self,
+        db: AsyncSession,
+        user_id: uuid.UUID,
+    ) -> int:
+        stmt = select(func.count()).select_from(Task).where(
+            and_(
+                Task.user_id == user_id,
+                Task.is_completed.is_(False),
+                Task.is_deleted.is_(False),
+            )
+        )
+        result = await db.execute(stmt)
+        return int(result.scalar_one() or 0)
+
+    async def count_overdue_tasks(
+        self,
+        db: AsyncSession,
+        user_id: uuid.UUID,
+    ) -> int:
+        stmt = select(func.count()).select_from(Task).where(
+            and_(
+                Task.user_id == user_id,
+                Task.is_completed.is_(False),
+                Task.is_deleted.is_(False),
+                Task.end_date.is_not(None),
+                Task.end_date < func.now(),
+            )
+        )
+        result = await db.execute(stmt)
+        return int(result.scalar_one() or 0)
+
+    async def count_completed_tasks(
+        self,
+        db: AsyncSession,
+        user_id: uuid.UUID,
+    ) -> int:
+        stmt = select(func.count()).select_from(Task).where(
+            and_(
+                Task.user_id == user_id,
+                Task.is_completed.is_(True),
+                Task.is_deleted.is_(False),
+            )
+        )
+        result = await db.execute(stmt)
+        return int(result.scalar_one() or 0)
 
     async def update_task(
         self,
