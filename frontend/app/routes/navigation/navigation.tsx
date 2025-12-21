@@ -55,10 +55,15 @@ export function TopNavigation() {
     <span className={"title-name"}>AuroraMind</span>
     <div className="current-date"></div>
     <menu className="top-buttons">
-      <Button variant={"contained"}><FaGear size={"1.2rem"} /></Button>
-        <Button variant="contained" onClick={logout}>
-            <FaRegUser size="1.2rem" />
-        </Button>
+      <Button variant={"contained"} onClick={logout}>
+          <FaGear size={"1.2rem"} />
+      </Button>
+
+        <NavLink to="/app/profile" style={{ textDecoration: 'none' }}>
+            <Button variant="contained">
+                <FaRegUser size="1.2rem" />
+            </Button>
+        </NavLink>
 
     </menu>
     <span className={"email-address"}>sample@gmail.com</span>
