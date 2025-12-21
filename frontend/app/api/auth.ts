@@ -18,6 +18,32 @@ export interface LoginResponse {
     };
 }
 
+export interface UserProfile {
+    username: string;
+    email: string;
+    id: string;
+    created_at: string;
+    is_active: boolean;
+}
+
+export interface GetProfileResponse {
+    code: number;
+    message: string;
+    data?: UserProfile;
+}
+
+export interface UpdateProfileRequest {
+    username?: string;
+    email?: string;
+    password?: string;
+}
+
+export interface UpdateProfileResponse {
+    code: number;
+    message: string;
+    data?: UserProfile;
+}
+
 export async function login(payload: LoginRequest): Promise<LoginResponse> {
     const res = await axios.post<LoginResponse>(
         `${API_BASE}/api/v1/login`,
@@ -69,4 +95,38 @@ export function logout() {
     localStorage.removeItem("access_token");
     localStorage.removeItem("user");
     window.location.href = "/";
+}
+
+// 辅助函数：统一获取headers
+const getHeaders = () => {
+    const token = localStorage.getItem("access_token");
+    return {
+        "Content-Type": "application/json",
+        ...(token ? { "Authorization": `Bearer ${token}` } : {})
+    };
+};
+
+// user info
+export async function getProfile(): Promise<GetProfileResponse> {
+    const res = await axios.get<GetProfileResponse>(
+        `${API_BASE}/api/v1/me`,
+        {
+            headers: getHeaders(),
+        }
+    );
+    return res.data;
+}
+
+// update current user profile
+export async function updateProfile(
+    payload: UpdateProfileRequest
+): Promise<UpdateProfileResponse> {
+    const res = await axios.put<UpdateProfileResponse>(
+        `${API_BASE}/api/v1/me`,
+        payload,
+        {
+            headers: getHeaders(),
+        }
+    );
+    return res.data;
 }
