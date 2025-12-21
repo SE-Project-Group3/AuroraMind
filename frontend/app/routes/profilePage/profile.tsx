@@ -1,6 +1,7 @@
 import type { Route } from "./+types/profile";
 import React, { useState, useEffect } from 'react';
 import { getProfile, updateProfile, logout, type UserProfile, type UpdateProfileRequest} from "../../api/auth";
+import { getLists, getTasks, type Task } from '../../api/tasks';
 import axios from 'axios';
 
 export function meta({}: Route.MetaArgs) {
@@ -22,32 +23,81 @@ export default function ProfilePage() {
     const [isEditing, setIsEditing] = useState(false);
     const [newUsername, setNewUsername] = useState('');
 
-    // 模拟的统计数据（通常这些可能来自另一个接口，这里先保留 UI 占位）
-    const stats = [
-        { label: 'Pending Tasks', value: 15 },
-        { label: 'Overdue Tasks', value: 3 },
-        { label: 'Tasks Completed', value: 7 },
-        { label: 'Goals Achieved', value: 0 },
-    ];
+    // 统计状态
+    const [stats, setStats] = useState({
+        pending: 0,
+        overdue: 0,
+        completed: 0,
+        // goals: 0 // 这里暂定为已完成的清单(List)数量
+    });
 
     // 2. 初始化：获取用户信息
     useEffect(() => {
-        fetchUserData();
+        // fetchUserData();
+        const loadAllData = async () => {
+            setLoading(true);
+            try {
+                // 1. 获取用户信息
+                const profileRes = await getProfile();
+                if (profileRes.data) setUser(profileRes.data);
+
+                // 2. 获取所有清单
+                const lists = await getLists();
+
+                // 3. 并发获取所有清单下的任务
+                const tasksNested = await Promise.all(
+                    lists.map(list => getTasks(list.id))
+                );
+
+                // 4. 将嵌套数组拍平
+                const allTasks: Task[] = tasksNested.flat();
+
+                // 5. 计算统计数据
+                const now = new Date();
+
+                const calculatedStats = allTasks.reduce((acc, task) => {
+                    if (task.is_completed) {
+                        acc.completed += 1;
+                    } else {
+                        // 检查是否逾期
+                        const dueDate = new Date(task.end_date);
+                        if (dueDate < now) {
+                            acc.overdue += 1;
+                        } else {
+                            acc.pending += 1;
+                        }
+                    }
+                    return acc;
+                }, { pending: 0, overdue: 0, completed: 0 });
+
+                setStats({
+                    ...calculatedStats,
+                    // goals: lists.length // 假设一个清单就是一个目标
+                });
+
+            } catch (error) {
+                console.error("Failed to fetch data", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadAllData();
     }, []);
 
-    const fetchUserData = async () => {
-        try {
-            const response = await getProfile();
-            if (response.code === 200 && response.data) {
-                setUser(response.data);
-                setNewUsername(response.data.username);
-            }
-        } catch (error) {
-            console.error("获取用户信息失败", error);
-        } finally {
-            setLoading(false);
-        }
-    };
+    // const fetchUserData = async () => {
+    //     try {
+    //         const response = await getProfile();
+    //         if (response.code === 200 && response.data) {
+    //             setUser(response.data);
+    //             setNewUsername(response.data.username);
+    //         }
+    //     } catch (error) {
+    //         console.error("获取用户信息失败", error);
+    //     } finally {
+    //         setLoading(false);
+    //     }
+    // };
 
     // 3. 更新用户信息逻辑
     const handleUpdateName = async () => {
@@ -87,13 +137,14 @@ export default function ProfilePage() {
         }
     };
 
-    // 4. 登出逻辑
-    // const handleLogout = () => {
-    //     localStorage.removeItem("access_token"); // 清除 token
-    //     window.location.href = "/login"; // 跳转到登录页
-    // };
 
-    if (loading) return <div className="p-8">Loading...</div>;
+    const statsConfig = [
+        { label: 'Pending Tasks', value: stats.pending, color: 'text-blue-500' },
+        { label: 'Overdue Tasks', value: stats.overdue, color: 'text-red-500' },
+        { label: 'Tasks Completed', value: stats.completed, color: 'text-green-500' },
+    ];
+
+    if (loading) return <div className="flex h-screen items-center justify-center">Loading...</div>;
 
     return (
         <div className="flex-1 bg-gray-50 min-h-screen p-8 font-sans">
@@ -141,12 +192,14 @@ export default function ProfilePage() {
                 </div>
             </div>
 
-            {/* 统计卡片 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto mb-20">
-                {stats.map((item, index) => (
+            {/* 动态统计卡片 */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto mb-20">
+                {statsConfig.map((item, index) => (
                     <div key={index} className="bg-white rounded-xl shadow-sm p-8 flex flex-col items-center justify-center">
                         <h3 className="text-gray-800 font-semibold mb-2">{item.label}</h3>
-                        <span className="text-5xl font-bold text-blue-500 my-2">{item.value}</span>
+                        <span className={`text-5xl font-bold my-2 ${item.color}`}>
+                            {item.value}
+                        </span>
                         <span className="text-gray-400 text-xs">Total</span>
                     </div>
                 ))}
