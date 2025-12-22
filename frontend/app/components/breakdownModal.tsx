@@ -22,6 +22,10 @@ const BreakdownModal: React.FC<BreakdownModalProps> = ({ isOpen, onClose, goalId
 
     if (!isOpen) return null;
 
+    // 导航栏和侧边栏尺寸（如有变化请同步调整）
+    const NAV_HEIGHT = 64; // px, 假设TopNavigation高度为64px
+    const SIDEBAR_WIDTH = 224; // px, 假设LeftNavigation宽度为224px
+
     // 逻辑：拆解目标并默认全部勾选
     const handleBreakdown = async () => {
         if (!inputText.trim()) return;
@@ -79,17 +83,51 @@ const BreakdownModal: React.FC<BreakdownModalProps> = ({ isOpen, onClose, goalId
         }
     };
 
+    // 清除状态并关闭
+    const handleClose = () => {
+        setItems([]);
+        setInputText('');
+        onClose();
+    };
+
     // 将任务平分为两组（模拟原型图中的 List-A 和 List-B）
     const half = Math.ceil(items.length / 2);
     const groupA = items.slice(0, half);
     const groupB = items.slice(half);
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm p-4">
-            <div className={`bg-white rounded-3xl shadow-2xl transition-all duration-500 flex overflow-hidden ${items.length > 0 ? 'max-w-5xl w-full' : 'max-w-2xl w-full'}`}>
+        <div
+            className="fixed z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm p-4"
+            style={{
+                top: NAV_HEIGHT,
+                left: SIDEBAR_WIDTH,
+                right: 0,
+                bottom: 0,
+                // 只覆盖主内容区，不覆盖导航栏和侧边栏
+            }}
+        >
+            <div
+                className={`bg-white rounded-3xl shadow-2xl transition-all duration-500 flex overflow-hidden w-full ${items.length > 0 ? 'max-w-5xl' : 'max-w-2xl'}`}
+                style={{
+                    maxHeight: '80vh', // 弹窗最大高度
+                }}
+            >
 
                 {/* --- 左侧面板：输入与引导 --- */}
-                <div className={`p-10 flex-1 transition-all ${items.length > 0 ? 'border-r border-gray-100 bg-gray-50/30' : ''}`}>
+                <div className={`p-10 flex-1 transition-all ${items.length > 0 ? 'border-r border-gray-100 bg-gray-50/30' : ''}`}
+                    style={{ maxHeight: '80vh', overflowY: 'auto' }}
+                >
+                    {/* 🟢 关闭按钮：现在它相对于左侧面板定位 */}
+                    <div className="relative">
+                        <button
+                            onClick={handleClose}
+                            className="absolute top-0 right-0 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-all z-30"
+                            style={{ transform: 'translate(50%,-50%)' }}
+                        >
+                            <X size={20} />
+                        </button>
+                    </div>
+
                     <div className="relative h-full flex flex-col">
                         <div className="text-center space-y-2 mb-10">
                             <h2 className="text-3xl font-bold text-gray-900">AI–Powered Goal Breakdown</h2>
@@ -131,7 +169,9 @@ const BreakdownModal: React.FC<BreakdownModalProps> = ({ isOpen, onClose, goalId
 
                 {/* --- 右侧面板：结果展示（仅在有 items 时显示） --- */}
                 {items.length > 0 && (
-                    <div className="w-1/2 p-10 bg-white flex flex-col animate-in slide-in-from-right duration-500">
+                    <div className="w-1/2 p-10 bg-white flex flex-col animate-in slide-in-from-right duration-500"
+                        style={{ maxHeight: '80vh', overflowY: 'auto' }}
+                    >
                         <div className="flex justify-between items-start mb-6">
                             <div>
                                 <h2 className="text-2xl font-bold text-gray-900">Action Steps Generated</h2>
