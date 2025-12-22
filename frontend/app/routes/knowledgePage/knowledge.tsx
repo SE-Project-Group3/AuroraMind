@@ -1,14 +1,25 @@
 import type { Route } from "./+types/knowledge";
-import React from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
     FolderOpen,
     FileText,
     Search,
     Plus,
-    ArrowUpCircle
+    ArrowUpCircle,
+    Loader2,
+    Check,
+    Trash2
 } from 'lucide-react';
 
 import './knowledge.scss'
+import { 
+    listKnowledgeDocuments, 
+    uploadKnowledgeDocument, 
+    downloadKnowledgeDocument,
+    streamConversation,
+    type knowledgeDocument 
+} from "~/api/knowledge";
+import { GoalService, type GoalUI } from "~/api/goals";
 
 export function meta({}: Route.MetaArgs) {
     return [
@@ -17,110 +28,431 @@ export function meta({}: Route.MetaArgs) {
     ];
 }
 
-// loader
-export async function loader({}: Route.LoaderArgs) {
-    return null;
+interface StoredChat {
+    conversationId: string | null;
+    messages: {role: string, content: string}[];
 }
 
+export const handle = {
+    clientLoader: true,
+};
 
-export default function KnowledgeBasePage() {
+export function HydrateFallback() {
+  return <div>Loading...</div>;
+}
+
+export async function clientLoader({}: Route.LoaderArgs) {
+    const initialDocs = await listKnowledgeDocuments();
+    const goals = await GoalService.getAllGoals();
+    return { initialDocs, goals };
+}
+clientLoader.hydrate = true;
+
+export default function KnowledgeBasePage({loaderData}: Route.ComponentProps) {
+    const { initialDocs, goals } = loaderData as { initialDocs: knowledgeDocument[], goals: GoalUI[] };
+    
+    // --- Data State ---
+    const [docs, setDocs] = useState<knowledgeDocument[]>(initialDocs);
+    const [activeGoalId, setActiveGoalId] = useState<string | null>(null);
+    const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+    
+    // --- Chat State ---
+    const [messages, setMessages] = useState<{role: string, content: string}[]>([]);
+    const [input, setInput] = useState("");
+    const [chatSelectedDocId, setChatSelectedDocId] = useState<string | null>(null);
+    const [isDocSelectorOpen, setIsDocSelectorOpen] = useState(false);
+    const [conversationId, setConversationId] = useState<string | null>(null);
+
+    // UI State
+    const [isUploading, setIsUploading] = useState(false);
+    const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+    const [isLoadingPdf, setIsLoadingPdf] = useState(false);
+
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const docSelectorRef = useRef<HTMLDivElement>(null);
+    const isMounted = useRef(false);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    // --- STORAGE HELPERS ---
+    const getStorageKey = (goalId: string | null) => `chat_history_${goalId ?? 'default'}`;
+
+    const saveCurrentChat = (goalId: string | null, msgs: typeof messages, convId: string | null) => {
+        const data: StoredChat = { conversationId: convId, messages: msgs };
+        localStorage.setItem(getStorageKey(goalId), JSON.stringify(data));
+    };
+
+    const loadChat = (goalId: string | null) => {
+        const stored = localStorage.getItem(getStorageKey(goalId));
+        if (stored) {
+            try {
+                const data: StoredChat = JSON.parse(stored);
+                setMessages(data.messages || []);
+                setConversationId(data.conversationId || null);
+            } catch (e) {
+                console.error("Failed to parse chat history", e);
+                setMessages([]);
+                setConversationId(null);
+            }
+        } else {
+            setMessages([]);
+            setConversationId(null);
+        }
+    };
+
+    const clearHistory = () => {
+        if(confirm("Clear chat history for this folder?")) {
+            setMessages([]);
+            setConversationId(null);
+            localStorage.removeItem(getStorageKey(activeGoalId));
+        }
+    };
+
+    // Filter documents based on active folder
+    const filteredDocs = useMemo(() => {
+        return docs.filter(doc => {
+            if (activeGoalId === null) {
+                return !doc.goal_id;
+            }
+            return doc.goal_id === activeGoalId;
+        });
+    }, [docs, activeGoalId]);
+
+    // Auto-Select First File on Folder Change
+    useEffect(() => {
+        setChatSelectedDocId(null); 
+        if (filteredDocs.length > 0) {
+            setSelectedDocId(filteredDocs[0].id);
+        } else {
+            setSelectedDocId(null);
+            setPdfUrl(null);
+        }
+        loadChat(activeGoalId);
+    }, [activeGoalId, docs]);
+
+    // Load PDF Content when Selection Changes
+    useEffect(() => {
+        let isMounted = true;
+        async function loadContent() {
+            if (!selectedDocId) {
+                if (isMounted) setPdfUrl(null);
+                return;
+            }
+            setIsLoadingPdf(true);
+            try {
+                const blob = await downloadKnowledgeDocument(selectedDocId);
+                if (isMounted) {
+                    const url = URL.createObjectURL(blob);
+                    setPdfUrl(url);
+                }
+            } catch (error) {
+                console.error("Failed to load PDF", error);
+                if (isMounted) setPdfUrl(null);
+            } finally {
+                if (isMounted) setIsLoadingPdf(false);
+            }
+        }
+        loadContent();
+        return () => { isMounted = false; };
+    }, [selectedDocId]);
+
+    // Cleanup Object URL
+    useEffect(() => {
+        return () => { if (pdfUrl) URL.revokeObjectURL(pdfUrl); };
+    }, [pdfUrl]);
+
+    // Handle Click Outside to Close Selector
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (docSelectorRef.current && !docSelectorRef.current.contains(event.target as Node)) {
+                setIsDocSelectorOpen(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => { document.removeEventListener("mousedown", handleClickOutside); };
+    }, []);
+
+    // Save chat to local storage
+    useEffect(() => {
+        if (isMounted.current) {
+            if (messages.length > 0 || conversationId) {
+                saveCurrentChat(activeGoalId, messages, conversationId);
+            }
+        } else {
+            isMounted.current = true;
+        }
+    }, [messages, conversationId, activeGoalId]);
+
+    // Auto-scroll chat
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [messages]);
+
+    // Auto-resize textarea
+    useEffect(() => {
+        if (textareaRef.current) {
+            textareaRef.current.style.height = 'auto';
+            textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+        }
+    }, [input]);
+
+
+    // Handlers
+    const handleFolderClick = (goalId: string | null) => setActiveGoalId(goalId);
+    const handleFileClick = (docId: string) => setSelectedDocId(docId);
+    const handleUploadClick = () => fileInputRef.current?.click();
+
+    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        setIsUploading(true);
+        try {
+            const newDoc = await uploadKnowledgeDocument(file, activeGoalId as any);
+            setDocs(prev => [...prev, newDoc]);
+        } catch (error) {
+            console.error("Upload failed", error);
+            alert("Failed to upload file. Please try again.");
+        } finally {
+            setIsUploading(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
+
+    const activeDocName = useMemo(() => {
+        return filteredDocs.find(d => d.id === selectedDocId)?.original_filename;
+    }, [filteredDocs, selectedDocId]);
+
+    const toggleChatDoc = (docId: string) => {
+        setChatSelectedDocId(prev => (prev === docId ? null : docId));
+    };
+
+    const handleSendMessage = async () => {
+        if (!input.trim()) return;
+        
+        const userMsg = { role: 'user', content: input };
+        const botMsgPlaceholder = { role: 'assistant', content: '' };
+        
+        setMessages(prev => [...prev, userMsg, botMsgPlaceholder]);
+        const currentInput = input;
+        setInput(''); 
+
+        try {
+            await streamConversation(
+                currentInput, 
+                chatSelectedDocId,
+                (textChunk) => {
+                    setMessages(prev => {
+                        const newMessages = [...prev];
+                        const lastMsg = newMessages[newMessages.length - 1];
+                        lastMsg.content += textChunk;
+                        return newMessages;
+                    });
+                },
+                (newConvId) => {
+                    setConversationId(newConvId);
+                },
+                (context) => {
+                    console.log("Received context:", context);
+                },
+                conversationId 
+            );
+        } catch (error) {
+            console.error("Chat error", error);
+        }
+    };
+
     return (
-        // 外层容器：使用 Tailwind 控制布局
-        <div className="flex flex-col h-full w-full mt-20 bg-[#F3F4F6] p-6 overflow-hidden box-border">
-
-            {/* ---------------- Top Section: Folder Tabs ---------------- */}
-            <header className="flex items-center space-x-4 mb-4 flex-shrink-0">
-                <button className="flex items-center space-x-2 bg-blue-50 text-blue-600 px-4 py-2 rounded-xl font-medium text-sm border border-blue-100 transition-colors">
-                    <FolderOpen size={16} className="fill-blue-600 text-blue-600" />
-                    <span>Goal–A Folder</span>
-                </button>
-                <button className="flex items-center space-x-2 bg-white text-gray-500 px-4 py-2 rounded-xl font-medium text-sm hover:bg-gray-50 border border-transparent transition-colors">
+        <div className="knowledge-page">
+            <header className="page-header">
+                <button 
+                    className={`folder-btn ${activeGoalId === null ? 'active' : 'inactive'}`}
+                    onClick={() => handleFolderClick(null)}
+                >
                     <FolderOpen size={16} />
-                    <span>Goal–B Folder</span>
+                    <span>Default Folder</span>
                 </button>
+
+                {goals.map((goal) => (
+                    <button 
+                        key={goal.id}
+                        className={`folder-btn ${activeGoalId === goal.id ? 'active' : 'inactive'}`}
+                        onClick={() => handleFolderClick(goal.id)}
+                    >
+                        <FolderOpen size={16} />
+                        <span>{goal.title} Folder</span>
+                    </button>
+                ))}
             </header>
 
-            {/* ---------------- Main Grid ---------------- */}
-            <div className="flex flex-row gap-6 h-full overflow-hidden">
-
-                {/* === Left Column: File List === */}
-                <aside className="w-[280px] flex-shrink-0 flex flex-col bg-white rounded-2xl p-4 shadow-sm">
-                    <div className="mb-4">
-                        <h2 className="text-lg font-semibold text-center text-gray-800 mb-4 mt-2">File List</h2>
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
-                            <input
-                                type="text"
-                                placeholder="Search"
-                                className="w-full bg-gray-50 text-sm pl-9 pr-3 py-2 rounded-lg border-none outline-none focus:ring-1 focus:ring-blue-200 placeholder-gray-400"
-                            />
+            <div className="content-grid">
+                <aside className="sidebar-left">
+                    <div className="search-section">
+                        <h2>File List</h2>
+                        <div className="search-wrapper">
+                            <Search className="search-icon" size={14} />
+                            <input type="text" placeholder="Search" />
                         </div>
                     </div>
 
-                    {/* List Items (kb-scroll-area 美化滚动条) */}
-                    <div className="flex-1 overflow-y-auto space-y-2 kb-scroll-area">
-                        <div className="flex items-start p-3 bg-blue-50 rounded-lg cursor-pointer border border-blue-100">
-                            <FileText className="text-blue-500 mt-0.5 flex-shrink-0" size={16} />
-                            <span className="ml-2 text-xs font-medium text-blue-900 leading-snug">
-                Designing Data–Intensive Applications.pdf
-              </span>
-                        </div>
+                    <div className="file-list kb-scroll-area">
+                        {filteredDocs.length === 0 ? (
+                            <div className="p-4 text-center text-gray-400 text-sm">
+                                No files in this folder.
+                            </div>
+                        ) : (
+                            filteredDocs.map((doc) => (
+                                <div 
+                                    key={doc.id} 
+                                    className={`file-item ${selectedDocId === doc.id ? 'active' : ''}`}
+                                    onClick={() => handleFileClick(doc.id)}
+                                >
+                                    <FileText className="file-icon" size={16} />
+                                    <span title={doc.original_filename}>
+                                        {doc.original_filename}
+                                    </span>
+                                </div>
+                            ))
+                        )}
                     </div>
 
-                    <button className="mt-4 flex items-center justify-center space-x-1 text-blue-500 hover:text-blue-600 text-sm font-medium py-2 transition-colors">
-                        <Plus size={16} />
-                        <span>Upload a new file</span>
+                    <input type="file" ref={fileInputRef} onChange={handleFileChange} style={{ display: 'none' }} />
+                    <button className="upload-btn" onClick={handleUploadClick} disabled={isUploading}>
+                        {isUploading ? <Loader2 className="animate-spin" size={16} /> : <Plus size={16} />}
+                        <span>{isUploading ? "Uploading..." : "Upload a new file"}</span>
                     </button>
                 </aside>
 
-                {/* === Middle Column: Content === */}
-                <main className="flex-1 flex flex-col bg-white rounded-2xl shadow-sm overflow-hidden">
-                    {/* Header */}
-                    <div className="px-8 py-5 border-b border-gray-100 bg-white flex justify-center items-center flex-shrink-0">
-                        <h3 className="font-semibold text-gray-800 text-sm">Designing Data–Intensive Applications.pdf</h3>
+                <main className="main-content">
+                    <div className="content-header">
+                        <h3>{activeDocName || "Document Viewer"}</h3>
                     </div>
-
-                    {/* Scrollable Area: 加上 kb-scroll-area 类名 */}
-                    <div className="flex-1 overflow-y-auto p-12 kb-scroll-area">
-                        {/* 这里的 max-w-3xl 控制文字宽度不要太宽，kb-article 控制排版样式 */}
-                        <article className="max-w-3xl mx-auto kb-article">
-                            <h1>Chapter 1. Trade-offs in Data Systems Architecture</h1>
-                            <p>
-                                Content.
-                            </p>
-
-                        </article>
+                    
+                    <div className="content-body kb-scroll-area">
+                        {pdfUrl ? (
+                            <div className="pdf-viewer-container">
+                                <iframe 
+                                    src={pdfUrl} 
+                                    title="PDF Viewer"
+                                />
+                            </div>
+                        ) : (
+                            <div className="empty-state">
+                                {isLoadingPdf ? (
+                                    <>
+                                        <Loader2 className="animate-spin" size={24} />
+                                        <span>Loading document...</span>
+                                    </>
+                                ) : (
+                                    <span>
+                                        {filteredDocs.length === 0 
+                                            ? "No files in this folder." 
+                                            : "Select a document to preview."}
+                                    </span>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </main>
 
-                {/* === Right Column: AI Chat === */}
-                <aside className="w-[360px] flex-shrink-0 flex flex-col bg-white rounded-2xl p-6 shadow-sm justify-between">
-                    <div className="flex-1 flex flex-col items-center justify-center text-center">
-                        <div className="mb-4 text-center">
-                            <h3 className="text-lg font-semibold text-gray-800 mb-1">Where should we begin?</h3>
-                            <p className="text-xs text-gray-400 max-w-[200px] mx-auto">
-                                description.
-                            </p>
-                        </div>
+                <aside className="sidebar-right">
+                    <div className="chat-placeholder">
+                        {messages.length > 0 && (
+                            <div className="chat-actions">
+                                <button onClick={clearHistory} className="clear-btn">
+                                    <Trash2 size={12} /> Clear Chat
+                                </button>
+                            </div>
+                        )}
+                        
+                        {messages.length === 0 ? (
+                            <div className="empty-chat">
+                                <h3>Where should we begin?</h3>
+                                <p>Select a document to start chatting about it.</p>
+                            </div>
+                        ) : (
+                            <div className="chat-messages kb-scroll-area">
+                                {messages.map((m, i) => (
+                                    <div key={i} className={`message-row ${m.role === 'user' ? 'user' : 'assistant'}`}>
+                                        <div className="message-bubble">
+                                            {m.content}
+                                        </div>
+                                    </div>
+                                ))}
+                                <div ref={messagesEndRef} />
+                            </div>
+                        )}
                     </div>
+                    
+                    <div className="chat-input-area" ref={docSelectorRef}>
+                        {isDocSelectorOpen && (
+                           <div className="doc-selector">
+                                <div className="ds-header">
+                                    Select context
+                                </div>
+                                <div className="ds-list kb-scroll-area">
+                                    {filteredDocs.length === 0 ? (
+                                        <div className="p-3 text-sm text-gray-400 text-center">No docs available</div>
+                                    ) : (
+                                        filteredDocs.map(doc => {
+                                            const isSelected = chatSelectedDocId === doc.id;
+                                            return (
+                                                <div 
+                                                    key={doc.id} 
+                                                    onClick={() => toggleChatDoc(doc.id)} 
+                                                    className={`ds-item ${isSelected ? 'selected' : ''}`}
+                                                >
+                                                    <div className="checkbox">
+                                                        {isSelected && <div className="dot"></div>}
+                                                    </div>
+                                                    <span title={doc.original_filename}>{doc.original_filename}</span>
+                                                </div>
+                                            )
+                                        })
+                                    )}
+                                </div>
+                           </div>
+                        )}
 
-                    <div className="relative w-full">
-                        <div className="flex items-center gap-2 p-2 bg-white rounded-full border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-                            <button className="p-2 text-blue-500 hover:bg-blue-50 rounded-full transition-colors">
-                                <Plus size={18} />
+                        <div className="input-wrapper">
+                            <button 
+                                className={`icon-btn ${isDocSelectorOpen || chatSelectedDocId ? 'active' : ''}`} 
+                                onClick={() => setIsDocSelectorOpen(!isDocSelectorOpen)} 
+                                title="Select documents for context"
+                            >
+                                <div className="badge-wrapper">
+                                    <Plus size={18} />
+                                    {chatSelectedDocId && (
+                                        <span className="badge-ping">
+                                          <span className="ping-animation"></span>
+                                          <span className="badge-dot"></span>
+                                        </span>
+                                    )}
+                                </div>
                             </button>
-                            <input
-                                type="text"
-                                placeholder="Ask a question..."
-                                className="flex-1 text-sm text-gray-700 outline-none bg-transparent"
+                            
+                            <textarea 
+                                ref={textareaRef}
+                                rows={1}
+                                placeholder="Ask a question..." 
+                                value={input} 
+                                onChange={(e) => setInput(e.target.value)} 
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault(); 
+                                        handleSendMessage();
+                                    }
+                                }}
                             />
-                            <button className="p-2 text-blue-500 hover:bg-blue-50 rounded-full transition-colors">
+
+                            <button 
+                                className="icon-btn send-btn" 
+                                onClick={handleSendMessage}
+                            >
                                 <ArrowUpCircle size={20} />
                             </button>
                         </div>
                     </div>
                 </aside>
-
             </div>
         </div>
     );
