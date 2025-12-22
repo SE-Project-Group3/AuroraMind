@@ -86,3 +86,96 @@ export async function deleteKnowledgeDocument(documentId: string): Promise<boole
     });
     return res.status === 200;
 }
+
+export async function streamConversation(
+    message: string, 
+    documentId: string | null, 
+    onChunk: (text: string) => void,
+    onMeta: (conversation_id: string) => void,
+    onContext?: (context: any) => void, // Optional: to handle the 'context' event later
+    conversation_id: string | null = null
+): Promise<void> {
+    const token = localStorage.getItem("access_token");
+
+    const response = await fetch(`${API_BASE}/api/v1/knowledge-base/conversation/stream`, {
+        method: 'POST',
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": token ? `Bearer ${token}` : ""
+        },
+        body: JSON.stringify({
+            question: message,
+            top_k: 8,
+            document_id: documentId,
+            conversation_id: conversation_id
+        })
+    });
+
+    if (!response.ok || !response.body) {
+        throw new Error(`Streaming failed: ${response.statusText}`);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+    let buffer = '';
+
+    while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        // 1. Decode new chunk and append to buffer
+        buffer += decoder.decode(value, { stream: true });
+
+        // 2. Split by double newline (standard SSE message delimiter)
+        const parts = buffer.split('\n\n');
+        
+        // 3. Keep the last part in buffer (it might be incomplete)
+        buffer = parts.pop() || ''; 
+
+        // 4. Process complete messages
+        for (const part of parts) {
+            const lines = part.split('\n');
+            let eventType = '';
+            let data = '';
+
+            for (const line of lines) {
+                if (line.startsWith('event: ')) {
+                    eventType = line.slice(7).trim();
+                } else if (line.startsWith('data: ')) {
+                    data = line.slice(6).trim();
+                }
+            }
+
+            // 5. Route based on event type
+            if (eventType === 'delta' && data) {
+                try {
+                    const parsed = JSON.parse(data);
+                    if (parsed.text) {
+                        onChunk(parsed.text);
+                    }
+                } catch (e) {
+                    console.error("Failed to parse delta JSON", e);
+                }
+            } else if (eventType === 'meta' && data) {
+                try {
+                    const parsed = JSON.parse(data);
+                    if (parsed.conversation_id) {
+                        onMeta(parsed.conversation_id);
+                    }
+                } catch (e) {
+                    console.error("Failed to parse meta JSON", e);
+                }
+            } else if (eventType === 'context' && data && onContext) {
+                try {
+                    const parsed = JSON.parse(data);
+                    onContext(parsed);
+                } catch (e) {
+                    console.error("Failed to parse context JSON", e);
+                }
+            } else if (eventType === 'done') {
+                // Stream finished
+                return;
+            }
+        }
+    }
+}
