@@ -19,9 +19,9 @@ class PhaseService:
         self.goal_service = GoalService()
 
     async def _generate_default_name(
-        self, db: AsyncSession, goal_id: uuid.UUID, user_id: uuid.UUID
+        self, db: AsyncSession, goal_id: uuid.UUID
     ) -> str:
-        stmt: Select[tuple[Phase]] = select(Phase.name).where(
+        stmt: Select[tuple[str]] = select(Phase.name).where(
             and_(Phase.goal_id == goal_id, Phase.is_deleted.is_(False))
         )
         result = await db.execute(stmt)
@@ -50,7 +50,7 @@ class PhaseService:
 
         name = phase_data.name
         if not name:
-            name = await self._generate_default_name(db, phase_data.goal_id, user_id)
+            name = await self._generate_default_name(db, phase_data.goal_id)
 
         phase = Phase(
             goal_id=phase_data.goal_id,

@@ -12,7 +12,7 @@ export default function AppLayout() {
             <TopNavigation />
             <div className="layout">
                 <LeftNavigation />
-                <main className="layout-main">
+                <main className="layout-main w-full">
                     <Outlet />
                 </main>
             </div>

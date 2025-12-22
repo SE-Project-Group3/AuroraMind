@@ -3,6 +3,7 @@ import { FaHouse, FaLocationCrosshairs, FaListUl, FaBook, FaPenClip, FaRotate, F
 import "./navigation.scss";
 import { useState } from "react";
 import { NavLink } from "react-router";
+import { logout } from "../../api/auth"
 
 export function LeftNavigation() {
   const [collapsed, setCollapsed] = useState(false);
@@ -52,11 +53,18 @@ export function LeftNavigation() {
 export function TopNavigation() {
   return <menu className="top-navigation">
     <span className={"title-name"}>AuroraMind</span>
-    <div className="current-date">Placeholder for time component</div>
+    <div className="current-date"></div>
     <menu className="top-buttons">
-      <Button variant={"contained"}><FaRotate size={"1.2rem"} /></Button>
-      <Button variant={"contained"}><FaGear size={"1.2rem"} /></Button>
-      <Button variant={"contained"}><FaRegUser size={"1.2rem"} /></Button>
+      <Button variant={"contained"} onClick={logout}>
+          <FaGear size={"1.2rem"} />
+      </Button>
+
+        <NavLink to="/app/profile" style={{ textDecoration: 'none' }}>
+            <Button variant="contained">
+                <FaRegUser size="1.2rem" />
+            </Button>
+        </NavLink>
+
     </menu>
     <span className={"email-address"}>sample@gmail.com</span>
   </menu>
