@@ -17,6 +17,7 @@
     justify-content: flex-start;
     flex: 1;
     min-width: 300px;
+    max-width: 400px;
 
     .list-header {
       margin-bottom: 10px;
@@ -28,6 +29,8 @@
         cursor: pointer;
         margin: 0;
         padding: 5px 0;
+        text-align: center;
+        width: 100%;
         
         &:hover {
           color: #3b82f6; // Blue highlight to indicate clickable
@@ -69,6 +72,8 @@
       font-weight: 600;
       color: #6b7280;
       font-size: 1.3rem;
+      text-align: center;
+      width: 100%;
 
       &.completed {
         margin-top: 30px;
