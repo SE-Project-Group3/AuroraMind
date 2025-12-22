@@ -3,12 +3,13 @@ from __future__ import annotations
 import uuid
 from collections.abc import Sequence
 
-from sqlalchemy import and_, select
+from sqlalchemy import and_, select, func
 from sqlalchemy.sql import Select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.task import Task
 from app.models.task_list import TaskList
+from app.models.base import utcnow
 from app.services.goal_service import GoalService
 from app.schemas.task import TaskCreate, TaskUpdate
 from app.schemas.task_list import TaskListCreate, TaskListUpdate
@@ -26,7 +27,14 @@ class TaskListService:
     ) -> TaskList | None:
         existing_task_list = await self.get_task_list_by_name(db, task_list_data.name, user_id)
         if existing_task_list:
-            return None
+            # Append suffix to avoid collision
+            base = task_list_data.name
+            suffix = 1
+            candidate = f"{base} ({suffix})"
+            while await self.get_task_list_by_name(db, candidate, user_id):
+                suffix += 1
+                candidate = f"{base} ({suffix})"
+            task_list_data.name = candidate
 
         if task_list_data.goal_id:
             goal = await self.goal_service.get_goal(db, task_list_data.goal_id, user_id)
@@ -189,6 +197,53 @@ class TaskService:
         )
         result = await db.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def count_pending_tasks(
+        self,
+        db: AsyncSession,
+        user_id: uuid.UUID,
+    ) -> int:
+        stmt = select(func.count()).select_from(Task).where(
+            and_(
+                Task.user_id == user_id,
+                Task.is_completed.is_(False),
+                Task.is_deleted.is_(False),
+            )
+        )
+        result = await db.execute(stmt)
+        return int(result.scalar_one() or 0)
+
+    async def count_overdue_tasks(
+        self,
+        db: AsyncSession,
+        user_id: uuid.UUID,
+    ) -> int:
+        stmt = select(func.count()).select_from(Task).where(
+            and_(
+                Task.user_id == user_id,
+                Task.is_completed.is_(False),
+                Task.is_deleted.is_(False),
+                Task.end_date.is_not(None),
+                Task.end_date < func.now(),
+            )
+        )
+        result = await db.execute(stmt)
+        return int(result.scalar_one() or 0)
+
+    async def count_completed_tasks(
+        self,
+        db: AsyncSession,
+        user_id: uuid.UUID,
+    ) -> int:
+        stmt = select(func.count()).select_from(Task).where(
+            and_(
+                Task.user_id == user_id,
+                Task.is_completed.is_(True),
+                Task.is_deleted.is_(False),
+            )
+        )
+        result = await db.execute(stmt)
+        return int(result.scalar_one() or 0)
 
     async def update_task(
         self,
