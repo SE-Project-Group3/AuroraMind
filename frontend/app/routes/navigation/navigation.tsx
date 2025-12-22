@@ -1,5 +1,5 @@
 import Button from '@mui/material/Button'
-import { FaHouse, FaLocationCrosshairs, FaListUl, FaBook, FaPenClip, FaRotate, FaGear, FaRegUser, FaBars } from "react-icons/fa6";
+import { FaHouse, FaLocationCrosshairs, FaListUl, FaBook, FaPenClip, FaArrowRightFromBracket, FaGear, FaRegUser, FaBars } from "react-icons/fa6";
 import "./navigation.scss";
 import { useState } from "react";
 import { NavLink } from "react-router";
@@ -55,16 +55,14 @@ export function TopNavigation() {
     <span className={"title-name"}>AuroraMind</span>
     <div className="current-date"></div>
     <menu className="top-buttons">
-      <Button variant={"contained"} onClick={logout}>
-          <FaGear size={"1.2rem"} />
-      </Button>
-
         <NavLink to="/app/profile" style={{ textDecoration: 'none' }}>
             <Button variant="contained">
                 <FaRegUser size="1.2rem" />
             </Button>
         </NavLink>
-
+        <Button variant={"contained"} onClick={logout}>
+          <FaArrowRightFromBracket size={"1.2rem"} />
+        </Button>
     </menu>
     <span className={"email-address"}>sample@gmail.com</span>
   </menu>
