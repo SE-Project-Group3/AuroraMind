@@ -7,7 +7,7 @@ interface GoalEditModalProps {
     isOpen: boolean;
     onClose: () => void;
     goal: GoalUI | null;
-    onGoalUpdated: () => void; // 通知父组件数据变了，需要重新 fetch
+    onGoalUpdated: () => Promise<void> | void; // 通知父组件数据变了，需要重新 fetch
 }
 
 const GoalEditModal: React.FC<GoalEditModalProps> = ({ isOpen, onClose, goal, onGoalUpdated }) => {
@@ -32,7 +32,7 @@ const GoalEditModal: React.FC<GoalEditModalProps> = ({ isOpen, onClose, goal, on
         if (!localGoal) return;
         await GoalService.updateGoal(localGoal.id, newTitle, newDesc);
         setEditingTitle(false);
-        onGoalUpdated(); // 刷新数据
+        await onGoalUpdated?.();
     };
 
     // --- Phase 操作 ---
@@ -40,20 +40,20 @@ const GoalEditModal: React.FC<GoalEditModalProps> = ({ isOpen, onClose, goal, on
         const name = prompt("Enter phase name:");
         if (!name) return;
         const success = await GoalService.createPhase(localGoal.id, name);
-        if (success) onGoalUpdated();
+        await onGoalUpdated?.();
     };
 
     const handleDeletePhase = async (phaseId: string) => {
         if (!confirm("Delete this phase and all its tasks?")) return;
         const success = await GoalService.deletePhase(phaseId);
-        if (success) onGoalUpdated();
+        await onGoalUpdated?.();
     };
 
     const handleEditPhaseName = async (phaseId: string, currentName: string) => {
         const newName = prompt("Edit phase name:", currentName);
         if (!newName || newName === currentName) return;
         const success = await GoalService.updatePhase(phaseId, newName);
-        if (success) onGoalUpdated();
+        await onGoalUpdated?.();
     };
 
     // --- Task 操作 ---
@@ -134,7 +134,7 @@ const GoalEditModal: React.FC<GoalEditModalProps> = ({ isOpen, onClose, goal, on
                     {/* Phases Section */}
                     <div className="space-y-6">
                         <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-bold text-gray-700">Phases & Tasks</h3>
+                            <h3 className="text-lg font-bold text-gray-700">Phases</h3>
                             <button
                                 onClick={handleAddPhase}
                                 className="flex items-center gap-1 text-sm text-blue-500 hover:bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-200 transition-colors"

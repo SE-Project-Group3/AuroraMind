@@ -1,11 +1,15 @@
 import "./todolist.scss";
 import Button from '@mui/material/Button'
 import TextField from '@mui/material/TextField'
-import { getLists, getTasks, updateTask, deleteTask, createTask, createList, updateList, deleteList, type Task, type TaskList } from "../../api/tasks"
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
+import { getLists, getTasks, updateTask, deleteTask, createTask, createList, updateList, deleteList, type Task } from "../../api/tasks"
 import { FaCheck, FaXmark, FaTrashCan } from "react-icons/fa6";
 import { useState, useEffect } from 'react';
 import type { Route } from "./+types/todolist";
 import { TaskItem } from "~/components/taskItem";
+import { GoalService } from "../../api/goals";
+import type { GoalUI } from "../../api/goals";
 
 export function meta({}: Route.MetaArgs) {
     return [
@@ -33,7 +37,7 @@ export function HydrateFallback() {
 }
 
 export default function TodoView({loaderData}: Route.ComponentProps) {
-    const [lists, setLists] = useState(loaderData.lists);
+    const [lists, setLists] = useState<TaskListWithGoal[]>(loaderData.lists);
     const [tasks, setTasks] = useState(loaderData.tasks.flat());
     const [isCreatingList, setIsCreatingList] = useState(false);
     const [newListName, setNewListName] = useState("");
@@ -135,10 +139,10 @@ export default function TodoView({loaderData}: Route.ComponentProps) {
         }
     };
 
-    const handleListUpdate = async (list: TaskList, newName: string) => {
-        const updatedList = await updateList(list.id, newName); //
+    const handleListUpdate = async (list: TaskListWithGoal, newName: string) => {
+        const updatedList = await updateList(list.id, newName);
         if (updatedList) {
-            setLists(prev => prev.map(l => l.id === list.id ? updatedList : l));
+            setLists(prev => prev.map(l => l.id === list.id ? { ...updatedList, goalId: list.goalId, goalName: list.goalName } : l));
         } else {
             alert("Failed to update list");
         }
@@ -289,15 +293,41 @@ export default function TodoView({loaderData}: Route.ComponentProps) {
     );
 }
 
+// Local copy of TaskList type
+export type TaskList = {
+    name: string;
+    id: string;
+    user_id: string;
+    created_at: string;
+    updated_at: string;
+};
+
+// Extended type for goal association
+export type TaskListWithGoal = TaskList & { goalId?: string; goalName?: string };
+
 export type ListHeaderProps = {
-    list: TaskList;
-    onUpdate: (list: TaskList, newName: string) => void;
+    list: TaskListWithGoal;
+    onUpdate: (list: TaskListWithGoal, newName: string) => void;
     onDelete: (listId: string) => void;
 };
 
 export function ListHeader({ list, onUpdate, onDelete }: ListHeaderProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [editName, setEditName] = useState(list.name);
+    const [goals, setGoals] = useState<GoalUI[]>([]);
+    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+    const [currentGoalName, setCurrentGoalName] = useState(list.goalName || "");
+
+    useEffect(() => {
+        GoalService.getAllGoals().then(res => {
+            setGoals(res);
+        });
+    }, []);
+
+    // Update goal name if list prop changes
+    useEffect(() => {
+        setCurrentGoalName(list.goalName || "");
+    }, [list.goalName]);
 
     const handleSave = () => {
         if (editName.trim()) {
@@ -311,12 +341,58 @@ export function ListHeader({ list, onUpdate, onDelete }: ListHeaderProps) {
         setIsEditing(false);
     };
 
+    const handleGoalButtonClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+        setAnchorEl(event.currentTarget);
+    };
+
+    const handleGoalSelect = async (goalId: string, goalTitle: string) => {
+        await onUpdate({ ...list, goalId, goalName: goalTitle }, list.name);
+        setCurrentGoalName(goalTitle);
+        setAnchorEl(null);
+    };
+
+    const handleRemoveAssociation = async () => {
+        await onUpdate({ ...list, goalId: undefined, goalName: undefined }, list.name);
+        setCurrentGoalName("");
+        setAnchorEl(null);
+    };
+
+    const handleMenuClose = () => {
+        setAnchorEl(null);
+    };
+
     if (!isEditing) {
         return (
             <div className="list-header">
-                <h2 onClick={() => setIsEditing(true)} title="Click to edit list name">
-                    {list.name}
-                </h2>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h2 onClick={() => setIsEditing(true)} title="Click to edit list name">
+                        {list.name}
+                    </h2>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {currentGoalName ? (
+                            <button className="goal-label text-xs text-gray-500 font-semibold link-goal-btn" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }} onClick={handleGoalButtonClick}>
+                                Goal: {currentGoalName}
+                            </button>
+                        ) : (
+                            <button className="link-goal-btn" onClick={handleGoalButtonClick}>
+                                Associate Goal
+                            </button>
+                        )}
+                        <Menu
+                            anchorEl={anchorEl}
+                            open={Boolean(anchorEl)}
+                            onClose={handleMenuClose}
+                        >
+                            <MenuItem onClick={handleRemoveAssociation} style={{ color: 'red' }}>Remove Association</MenuItem>
+                            {goals.map(goal => (
+                                <MenuItem key={goal.id} onClick={() => handleGoalSelect(goal.id, goal.title)}>
+                                    {goal.title}
+                                </MenuItem>
+                            ))}
+                            <MenuItem onClick={handleMenuClose}>Cancel</MenuItem>
+                        </Menu>
+                    </div>
+                </div>
             </div>
         );
     }
