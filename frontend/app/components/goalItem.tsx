@@ -84,21 +84,14 @@ const GoalItem: React.FC<GoalItemProps> = ({ data, onOpenBreakdown, onOpenResour
                     <div className="space-y-4">
                         {data.phases.map(phase => (
                             <div key={phase.id}>
-                                <h4 className="text-blue-400 text-xs font-medium mb-2 flex items-center gap-1">
-                                    🏷️ {phase.title}
+                                <h4 className="text-blue-500 text-base font-semibold mb-2 flex items-center gap-2">
+                                    <span className="inline-block text-lg">🏷️</span> {phase.title}
                                 </h4>
                                 <div className="space-y-2">
                                     {phase.tasks.map((task) => (
-                                        <div key={task.id} className="flex items-start gap-2">
-                                            {/* 2. 修复渲染逻辑，根据 task.done 决定样式 */}
-                                            <div className={`mt-0.5 w-3.5 h-3.5 border rounded flex-shrink-0 cursor-pointer hover:border-blue-400 
-                                        ${task.done ? 'bg-blue-500 border-blue-500' : 'border-gray-300'}`}>
-                                            </div>
-
-                                            {/* 3. 修复 Error 2: 必须渲染 task.text，不能直接渲染 task 对象 */}
-                                            <span className={`text-xs text-gray-700 leading-tight ${task.done ? 'line-through text-gray-400' : ''}`}>
-                                        {task.text}
-                                     </span>
+                                        <div key={task.id} className="flex items-start gap-3 py-2 px-3 rounded-lg bg-blue-50/40 border border-blue-100">
+                                            <div className={`mt-0.5 w-4 h-4 border-2 rounded flex-shrink-0 cursor-pointer hover:border-blue-400 ${task.done ? 'bg-blue-500 border-blue-500' : 'border-gray-300'}`}></div>
+                                            <span className={`text-sm font-medium text-gray-800 leading-tight ${task.done ? 'line-through text-gray-400' : ''}`}>{task.text}</span>
                                         </div>
                                     ))}
                                 </div>
