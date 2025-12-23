@@ -160,7 +160,7 @@ export default function goalsPage() {
                 isOpen={!!editingGoal}
                 goal={editingGoal}
                 onClose={() => setEditingGoal(null)}
-                onGoalUpdated={refreshData} // 数据变动时，静默刷新
+                onGoalUpdated={loadData}
             />
         </div>
     );

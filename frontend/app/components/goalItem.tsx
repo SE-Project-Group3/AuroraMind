@@ -110,14 +110,8 @@ const GoalItem: React.FC<GoalItemProps> = ({ data, onOpenBreakdown, onOpenResour
                                     {list.tasks.map((task) => (
                                         <div key={task.id} className="flex items-start gap-2">
                                             <div className={`mt-0.5 w-3.5 h-3.5 border rounded flex-shrink-0 cursor-pointer hover:border-blue-400 
-                                        ${task.done ? 'bg-blue-500 border-blue-500' : 'border-gray-300'}`}>
-                                            </div>
-
-                                            {/* 同样修复这里 */}
-                                            <span className={`text-xs text-gray-700 leading-tight ${task.done ? 'line-through text-gray-400' : ''}`}>
-                                        {task.text}
-                                     </span>
-
+                                        ${task.done ? 'bg-blue-500 border-blue-500' : 'border-gray-300'}`}></div>
+                                            <span className={`text-xs text-gray-700 leading-tight ${task.done ? 'line-through text-gray-400' : ''}`}>{task.text}</span>
                                             <div className="ml-auto w-3 h-3 border border-gray-200 rounded-sm"></div>
                                         </div>
                                     ))}
