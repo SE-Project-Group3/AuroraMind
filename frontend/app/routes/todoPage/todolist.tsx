@@ -41,7 +41,6 @@ export default function TodoView({loaderData}: Route.ComponentProps) {
     const [tasks, setTasks] = useState(loaderData.tasks.flat());
     const [isCreatingList, setIsCreatingList] = useState(false);
     const [newListName, setNewListName] = useState("");
-    console.log(tasks);
 
     const handleTaskToggle = async (task: Task) => {
         if (task.id.startsWith('temp-')) return;
@@ -163,8 +162,57 @@ export default function TodoView({loaderData}: Route.ComponentProps) {
         }
     };
 
+    const renderAddListForm = () => (
+        <div className="add-list-wrapper" style={lists.length === 0 ? { marginTop: 0, height: '100%', alignItems: 'center' } : {}}>
+            {!isCreatingList ? (
+                <button 
+                    className="add-task" 
+                    onClick={() => setIsCreatingList(true)}
+                >
+                    + Add a new list
+                </button>
+            ) : (
+                <div className="add-list-form">
+                    <TextField 
+                        size="small" 
+                        variant="outlined"
+                        value={newListName}
+                        onChange={(e) => setNewListName(e.target.value)}
+                        placeholder="List Name"
+                        autoFocus
+                        fullWidth
+                    />
+                    <div className="form-actions">
+                        <Button 
+                            variant="contained" 
+                            size="small" 
+                            onClick={handleCreateList}
+                            className="btn-confirm"
+                        >
+                            <FaCheck />
+                        </Button>
+                        <Button 
+                            variant="contained" 
+                            size="small" 
+                            onClick={() => setIsCreatingList(false)}
+                            className="btn-cancel">
+                            <FaXmark />
+                        </Button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+
     return (
         <div className="todo-view">
+            {lists.length === 0 && (
+                <div className="list-column empty-placeholder">
+                    <h2 className="section-title">Welcome!</h2>
+                    <p style={{ color: '#6b7280', marginBottom: '1rem' }}>You don't have any To-do list yet.</p>
+                    {renderAddListForm()}
+                </div>
+            )}
             {lists && tasks && lists.map((list, index) => {
                 let taskItems = tasks.filter((item) => item.task_list_id === list.id)
 
