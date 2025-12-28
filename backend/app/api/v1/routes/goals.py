@@ -97,6 +97,29 @@ async def get_goal_task_stats(
 
 
 @router.get(
+    "/{goal_id}/task-lists",
+    response_model=StandardResponse[list[uuid.UUID]],
+    summary="List task list IDs under a goal",
+)
+async def list_task_list_ids_under_goal(
+    goal_id: uuid.UUID,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> StandardResponse[list[uuid.UUID]]:
+    goal = await goal_service.get_goal(db, goal_id, current_user.id)
+    if not goal:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Goal not found"
+        )
+
+    task_lists = await task_list_service.list_task_lists(
+        db, current_user.id, goal_id=goal_id
+    )
+    ids = [tl.id for tl in task_lists] if task_lists else []
+    return ok(ids)
+
+
+@router.get(
     "/{goal_id}",
     response_model=StandardResponse[GoalResponse],
 )
