@@ -12,7 +12,7 @@ from app.schemas.breakdown import (
     BreakdownSelectionResponse,
 )
 from app.schemas.common import StandardResponse, ok
-from app.schemas.goal import GoalCreate, GoalResponse, GoalUpdate
+from app.schemas.goal import GoalCreate, GoalResponse, GoalUpdate, GoalTaskCountsResponse
 from app.schemas.task import TaskCreate
 from app.schemas.task_list import TaskListCreate
 from app.schemas.user import UserResponse
@@ -68,6 +68,32 @@ async def create_goal(
             detail="Goal already exists",
         )
     return ok(GoalResponse.model_validate(goal))
+
+
+@router.get(
+    "/{goal_id}/task-stats",
+    response_model=StandardResponse[GoalTaskCountsResponse],
+    summary="Get task counts for a goal (total and completed, excluding phase tasks)",
+)
+async def get_goal_task_stats(
+    goal_id: uuid.UUID,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> StandardResponse[GoalTaskCountsResponse]:
+    goal = await goal_service.get_goal(db, goal_id, current_user.id)
+    if not goal:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Goal not found"
+        )
+    total, completed = await task_service.count_tasks_by_goal(
+        db, current_user.id, goal_id
+    )
+    return ok(
+        GoalTaskCountsResponse(
+            total_tasks=total,
+            completed_tasks=completed,
+        )
+    )
 
 
 @router.get(
