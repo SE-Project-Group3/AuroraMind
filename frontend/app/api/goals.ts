@@ -63,9 +63,18 @@ export interface GoalUI {
     title: string;
     description: string;
     progress: number;
+    totalTasks: number;
+    completedTasks: number;
+    taskListNames: string[];
     timeline: { date: string; done: boolean }[];
     phases: TaskGroup[];
     lists: TaskGroup[];
+}
+
+// 新增：目标任务统计接口
+export interface GoalTaskStats {
+    total_tasks: number;
+    completed_tasks: number;
 }
 
 // ==========================================
@@ -76,13 +85,18 @@ const getHeaders = () => ({
     "Authorization": `Bearer ${localStorage.getItem("access_token") || ""}`
 });
 
-const calculateProgress = (groups: TaskGroup[]): number => {
+const calculateStats = (groups: TaskGroup[]) => {
     let total = 0, completed = 0;
     groups.forEach(g => g.tasks.forEach(t => {
         total++;
         if (t.done) completed++;
     }));
-    return total === 0 ? 0 : Math.round((completed / total) * 100);
+
+    return {
+        total,
+        completed,
+        progress: total === 0 ? 0 : Math.round((completed / total) * 100)
+    };
 };
 
 // ==========================================
@@ -90,41 +104,61 @@ const calculateProgress = (groups: TaskGroup[]): number => {
 // ==========================================
 const enrichGoalData = async (apiGoal: ApiGoal): Promise<GoalUI> => {
     try {
-        // 1. 获取 Phases 列表
-        const res = await axios.get<ApiResponse<ApiPhase[]>>(`${API_BASE}/api/v1/phases`, {
-            params: { goal_id: apiGoal.id },
-            headers: getHeaders()
-        });
+        // 1. 并行发起请求以提高速度
+        //    - 获取 Phases
+        //    - 获取该 Goal 关联的 List IDs
+        //    - 获取所有 List (为了查名字)
+        const [phasesRes, listIdsRes, allListsRes] = await Promise.all([
+            axios.get<ApiResponse<ApiPhase[]>>(`${API_BASE}/api/v1/phases`, {
+                params: { goal_id: apiGoal.id },
+                headers: getHeaders()
+            }),
+            axios.get<ApiResponse<string[]>>(`${API_BASE}/api/v1/goals/${apiGoal.id}/task-lists`, {
+                headers: getHeaders()
+            }),
+            axios.get<ApiResponse<any[]>>(`${API_BASE}/api/v1/task-lists`, {
+                headers: getHeaders()
+            })
+        ]);
 
-        const apiPhases = res.data?.data || [];
+        const apiPhases = phasesRes.data?.data || [];
+        const linkedListIds = listIdsRes.data?.data || []; // 拿到的 IDs: ["uuid-1", "uuid-2"]
+        const allLists = allListsRes.data?.data || [];     // 拿到的全量 List 对象
 
-        // 2. 获取任务时增加个体异常捕获
+        // 2. 匹配名字：筛选出 ID 在 linkedListIds 里的那些 List，并提取 name
+        const associatedListNames = allLists
+            .filter((list: any) => linkedListIds.includes(list.id))
+            .map((list: any) => list.name);
+
+        // 3. 处理 Phases 任务 (逻辑保持不变)
         const phasesUI: TaskGroup[] = await Promise.all(apiPhases.map(async (p) => {
             try {
-                // 尝试获取任务，如果 405 或 500，则返回空数组
                 const taskRes = await axios.get<ApiResponse<any[]>>(`${API_BASE}/api/v1/phases/${p.id}/tasks`, {
                     headers: getHeaders()
                 });
-
                 const tasks = (taskRes.data?.data || []).map(t => ({
                     id: t.id,
                     text: t.name,
                     done: t.is_completed
                 }));
-
                 return { id: p.id, title: p.name, tasks };
             } catch (taskError) {
-                // 针对 405 错误静默处理，保证 Phase 标题能渲染
-                console.warn(`Task fetch failed for phase ${p.id}, returning empty list.`, taskError);
+                console.warn(`Task fetch failed for phase ${p.id}`, taskError);
                 return { id: p.id, title: p.name, tasks: [] };
             }
         }));
+
+        // 4. 计算统计
+        const stats = calculateStats(phasesUI);
 
         return {
             id: apiGoal.id,
             title: apiGoal.name,
             description: apiGoal.description || "",
-            progress: calculateProgress(phasesUI),
+            progress: stats.progress,
+            totalTasks: stats.total,
+            completedTasks: stats.completed,
+            taskListNames: associatedListNames, // <--- 赋值名字列表
             timeline: [
                 { date: new Date(apiGoal.created_at).toLocaleDateString().slice(0, 5), done: true },
                 { date: "Today", done: false }
@@ -134,12 +168,14 @@ const enrichGoalData = async (apiGoal: ApiGoal): Promise<GoalUI> => {
         };
     } catch (error) {
         console.error(`Critical failure in enriching goal ${apiGoal.id}:`, error);
-        // 最终兜底：至少返回目标名称
         return {
             id: apiGoal.id,
             title: apiGoal.name,
             description: "",
             progress: 0,
+            totalTasks: 0,
+            completedTasks: 0,
+            taskListNames: [], // <--- 兜底为空数组
             timeline: [],
             phases: [],
             lists: []
@@ -207,6 +243,35 @@ export const GoalService = {
             return res.data.code === 0;
         } catch (e) {
             return false;
+        }
+    },
+
+    // 获取目标下的任务统计（总数和已完成数）
+    async getGoalTaskStats(goalId: string): Promise<GoalTaskStats | null> {
+        try {
+            const res = await axios.get<ApiResponse<GoalTaskStats>>(
+                `${API_BASE}/api/v1/goals/${goalId}/task-stats`,
+                { headers: getHeaders() }
+            );
+            return res.data.code === 0 ? res.data.data : null;
+        } catch (e) {
+            console.error("Get Goal Task Stats Failed", e);
+            return null;
+        }
+    },
+
+    // 获取目标下的 Task List ID 列表
+    async getGoalTaskListIds(goalId: string): Promise<string[]> {
+        try {
+            const res = await axios.get<ApiResponse<string[]>>(
+                `${API_BASE}/api/v1/goals/${goalId}/task-lists`,
+                { headers: getHeaders() }
+            );
+            // 确保返回的是数组，如果出错或 code!=0 则返回空数组
+            return res.data.code === 0 && Array.isArray(res.data.data) ? res.data.data : [];
+        } catch (e) {
+            console.error("Get Goal Task List IDs Failed", e);
+            return [];
         }
     },
 

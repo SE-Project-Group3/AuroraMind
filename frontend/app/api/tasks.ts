@@ -38,6 +38,14 @@ export async function getLists(): Promise<TaskList[]> {
                  Authorization: token ? `Bearer ${token}` : ""
             },
         });
+    if (res.status === 200) {
+        // 关键步骤：映射数据
+        return res.data.data.map((item: any) => ({
+            ...item,
+            goalId: item.goal_id, // 把后端的 goal_id 赋值给前端的 goalId
+            // 如果后端将来加了 goal_name，这里也可以映射: goalName: item.goal_name
+        }));
+    }
     return res.data.data;
 }
 
@@ -61,7 +69,7 @@ export async function createList(name: string, goal_id = null) {
     return null;
 }
 
-export async function updateList(listId: string, name: string, goal_id = null) {
+export async function updateList(listId: string, name: string, goal_id: string | null = null) {
     const token = localStorage.getItem("access_token");
     const res = await axios.put(`${API_BASE}/api/v1/task-lists/${listId}`,
         {

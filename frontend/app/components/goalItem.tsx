@@ -15,12 +15,24 @@ const GoalItem: React.FC<GoalItemProps> = ({ data, onOpenBreakdown, onOpenResour
     return (
         <div className="bg-white rounded-xl p-6 mb-6 shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md transition-shadow w-full">
             {/* 顶部标题栏 */}
-            <div className="flex items-center gap-2 mb-6">
+            <div className="flex flex-wrap items-center gap-3 mb-6">
+                {/* 1. 标题 */}
                 <h3 className="text-xl font-medium text-gray-800">{data.title}</h3>
-                {/* 调用 onEdit */}
+
+                {/* 2. 新增：关联清单标签 */}
+                {data.taskListNames && data.taskListNames.map((name, index) => (
+                    <span
+                        key={index}
+                        className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 text-xs font-medium border border-indigo-100"
+                    >
+            🔗 {name}
+        </span>
+                ))}
+
+                {/* 3. 编辑按钮 */}
                 <button
                     onClick={onEdit}
-                    className="text-gray-300 hover:text-gray-500 text-xs flex items-center gap-1 transition-colors"
+                    className="text-gray-300 hover:text-gray-500 text-xs flex items-center gap-1 transition-colors ml-1"
                 >
                     Edit <Edit2 size={12} />
                 </button>
@@ -41,16 +53,20 @@ const GoalItem: React.FC<GoalItemProps> = ({ data, onOpenBreakdown, onOpenResour
                             <div className="relative z-10 flex justify-between w-[95%]">
                                 {data.timeline.map((point, idx) => (
                                     <div key={idx} className="flex flex-col items-center group">
-                    <span className="text-[10px] text-gray-400 mb-1 -rotate-45 origin-bottom-left translate-x-2">
-                      {point.date}
-                    </span>
+            <span className="text-[10px] text-gray-400 mb-1 -rotate-45 origin-bottom-left translate-x-2">
+                {point.date}
+            </span>
                                         <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center bg-white 
-                      ${point.done ? 'border-blue-500' : 'border-gray-200'}`}>
+                ${point.done ? 'border-blue-500' : 'border-gray-200'}`}>
                                             {point.done && <div className="w-2 h-2 bg-blue-500 rounded-full"></div>}
                                         </div>
                                     </div>
                                 ))}
-                                <div className="absolute -right-6 top-6 text-sm font-bold text-gray-800">{data.progress}%</div>
+
+                                <div className="absolute -right-12 top-6 text-sm font-bold text-gray-800">
+                                    {data.completedTasks} / {data.totalTasks}
+                                </div>
+
                             </div>
                         </div>
                     </div>
