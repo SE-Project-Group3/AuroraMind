@@ -245,6 +245,36 @@ class TaskService:
         result = await db.execute(stmt)
         return int(result.scalar_one() or 0)
 
+    async def count_tasks_by_goal(
+        self,
+        db: AsyncSession,
+        user_id: uuid.UUID,
+        goal_id: uuid.UUID,
+    ) -> tuple[int, int]:
+        """
+        Returns (total_tasks, completed_tasks) for all tasks under the goal's task lists.
+        Phase tasks are stored separately, so they are naturally excluded.
+        """
+        stmt = (
+            select(
+                func.count().label("total"),
+                func.count().filter(Task.is_completed.is_(True)).label("completed"),
+            )
+            .select_from(Task)
+            .join(TaskList, Task.task_list_id == TaskList.id)
+            .where(
+                Task.user_id == user_id,
+                Task.is_deleted.is_(False),
+                TaskList.is_deleted.is_(False),
+                TaskList.goal_id == goal_id,
+            )
+        )
+        result = await db.execute(stmt)
+        row = result.one()
+        total = int(row.total or 0)
+        completed = int(row.completed or 0)
+        return total, completed
+
     async def update_task(
         self,
         db: AsyncSession,
