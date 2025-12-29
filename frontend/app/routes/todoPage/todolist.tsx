@@ -5,7 +5,7 @@ import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import { getLists, getTasks, updateTask, deleteTask, createTask, createList, updateList, deleteList, type Task } from "../../api/tasks"
 import { FaCheck, FaXmark, FaTrashCan } from "react-icons/fa6";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { Route } from "./+types/todolist";
 import { TaskItem } from "~/components/taskItem";
 import { GoalService } from "../../api/goals";
@@ -140,8 +140,12 @@ export default function TodoView({loaderData}: Route.ComponentProps) {
     };
 
     const handleListUpdate = async (list: TaskListWithGoal, newName: string) => {
-        const updatedList = await updateList(list.id, newName);
+        // 使用 ?? null 操作符。
+        // 如果 list.goalId 是 undefined，就传 null 给后端；否则传 string ID。
+        const updatedList = await updateList(list.id, newName, list.goalId ?? null);
+
         if (updatedList) {
+            // 注意：这里保持原来的逻辑，手动合并 goalId，因为 updateList 的返回值可能不包含 goal 信息
             setLists(prev => prev.map(l => l.id === list.id ? { ...updatedList, goalId: list.goalId, goalName: list.goalName } : l));
         } else {
             alert("Failed to update list");
@@ -329,6 +333,15 @@ export function ListHeader({ list, onUpdate, onDelete }: ListHeaderProps) {
         setCurrentGoalName(list.goalName || "");
     }, [list.goalName]);
 
+    const displayGoalName = useMemo(() => {
+        if (list.goalName) return list.goalName; // 刚关联完，内存里有名字
+        if (list.goalId && goals.length > 0) {
+            const foundGoal = goals.find(g => g.id === list.goalId);
+            return foundGoal ? foundGoal.title : ""; // 查找到名字
+        }
+        return "";
+    }, [list.goalId, list.goalName, goals]);
+
     const handleSave = () => {
         if (editName.trim()) {
             onUpdate(list, editName);
@@ -369,9 +382,9 @@ export function ListHeader({ list, onUpdate, onDelete }: ListHeaderProps) {
                         {list.name}
                     </h2>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        {currentGoalName ? (
+                        {displayGoalName ? (
                             <button className="goal-label text-xs text-gray-500 font-semibold link-goal-btn" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }} onClick={handleGoalButtonClick}>
-                                Goal: {currentGoalName}
+                                Goal: {displayGoalName}
                             </button>
                         ) : (
                             <button className="link-goal-btn" onClick={handleGoalButtonClick}>
