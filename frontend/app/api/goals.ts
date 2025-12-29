@@ -104,33 +104,41 @@ const calculateStats = (groups: TaskGroup[]) => {
 // ==========================================
 const enrichGoalData = async (apiGoal: ApiGoal): Promise<GoalUI> => {
     try {
-        // 1. 并行发起请求以提高速度
-        //    - 获取 Phases
-        //    - 获取该 Goal 关联的 List IDs
-        //    - 获取所有 List (为了查名字)
-        const [phasesRes, listIdsRes, allListsRes] = await Promise.all([
+        // 1. 并行发起所有请求
+        const [phasesRes, listIdsRes, allListsRes, statsRes] = await Promise.all([
+            // A. 获取阶段
             axios.get<ApiResponse<ApiPhase[]>>(`${API_BASE}/api/v1/phases`, {
                 params: { goal_id: apiGoal.id },
                 headers: getHeaders()
             }),
+            // B. 获取关联的 List ID
             axios.get<ApiResponse<string[]>>(`${API_BASE}/api/v1/goals/${apiGoal.id}/task-lists`, {
                 headers: getHeaders()
             }),
+            // C. 获取所有 Lists (为了匹配名字)
             axios.get<ApiResponse<any[]>>(`${API_BASE}/api/v1/task-lists`, {
                 headers: getHeaders()
-            })
+            }),
+            // D. 【关键】获取统计数据 (使用你新增的接口)
+            axios.get<ApiResponse<{ total_tasks: number; completed_tasks: number }>>(
+                `${API_BASE}/api/v1/goals/${apiGoal.id}/task-stats`,
+                { headers: getHeaders() }
+            )
         ]);
 
+        // 2. 解构数据
         const apiPhases = phasesRes.data?.data || [];
-        const linkedListIds = listIdsRes.data?.data || []; // 拿到的 IDs: ["uuid-1", "uuid-2"]
-        const allLists = allListsRes.data?.data || [];     // 拿到的全量 List 对象
+        const linkedListIds = listIdsRes.data?.data || [];
+        const allLists = allListsRes.data?.data || [];
+        // 获取统计数字，默认为 0
+        const statsData = statsRes.data?.data || { total_tasks: 0, completed_tasks: 0 };
 
-        // 2. 匹配名字：筛选出 ID 在 linkedListIds 里的那些 List，并提取 name
+        // 3. 匹配清单名字
         const associatedListNames = allLists
             .filter((list: any) => linkedListIds.includes(list.id))
             .map((list: any) => list.name);
 
-        // 3. 处理 Phases 任务 (逻辑保持不变)
+        // 4. 处理 Phases 下的具体任务 (用于 UI 列表展示，不用于统计了)
         const phasesUI: TaskGroup[] = await Promise.all(apiPhases.map(async (p) => {
             try {
                 const taskRes = await axios.get<ApiResponse<any[]>>(`${API_BASE}/api/v1/phases/${p.id}/tasks`, {
@@ -139,7 +147,7 @@ const enrichGoalData = async (apiGoal: ApiGoal): Promise<GoalUI> => {
                 const tasks = (taskRes.data?.data || []).map(t => ({
                     id: t.id,
                     text: t.name,
-                    done: t.is_completed
+                    done: t.is_completed // 请确保后端返回字段是 is_completed
                 }));
                 return { id: p.id, title: p.name, tasks };
             } catch (taskError) {
@@ -148,17 +156,23 @@ const enrichGoalData = async (apiGoal: ApiGoal): Promise<GoalUI> => {
             }
         }));
 
-        // 4. 计算统计
-        const stats = calculateStats(phasesUI);
+        // 5. 计算进度百分比
+        // 注意：分母为 0 时进度为 0
+        const progressPercent = statsData.total_tasks === 0
+            ? 0
+            : Math.round((statsData.completed_tasks / statsData.total_tasks) * 100);
 
         return {
             id: apiGoal.id,
             title: apiGoal.name,
             description: apiGoal.description || "",
-            progress: stats.progress,
-            totalTasks: stats.total,
-            completedTasks: stats.completed,
-            taskListNames: associatedListNames, // <--- 赋值名字列表
+
+            // 使用后端返回的统计数据
+            progress: progressPercent,
+            totalTasks: statsData.total_tasks,
+            completedTasks: statsData.completed_tasks,
+
+            taskListNames: associatedListNames,
             timeline: [
                 { date: new Date(apiGoal.created_at).toLocaleDateString().slice(0, 5), done: true },
                 { date: "Today", done: false }
@@ -175,7 +189,7 @@ const enrichGoalData = async (apiGoal: ApiGoal): Promise<GoalUI> => {
             progress: 0,
             totalTasks: 0,
             completedTasks: 0,
-            taskListNames: [], // <--- 兜底为空数组
+            taskListNames: [],
             timeline: [],
             phases: [],
             lists: []
