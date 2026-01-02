@@ -148,6 +148,7 @@ export default function goalsPage() {
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 goalId={currentGoalId}
+                goalTitle={goals.find(g => g.id === currentGoalId)?.title || ''}
                 onSuccess={() => {
                     console.log("保存成功，刷新数据...");
                     fetchMyGoals(); // 成功后刷新列表
@@ -159,7 +160,7 @@ export default function goalsPage() {
                 isOpen={!!editingGoal}
                 goal={editingGoal}
                 onClose={() => setEditingGoal(null)}
-                onGoalUpdated={refreshData} // 数据变动时，静默刷新
+                onGoalUpdated={loadData}
             />
         </div>
     );

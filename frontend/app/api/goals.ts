@@ -63,9 +63,18 @@ export interface GoalUI {
     title: string;
     description: string;
     progress: number;
+    totalTasks: number;
+    completedTasks: number;
+    taskListNames: string[];
     timeline: { date: string; done: boolean }[];
     phases: TaskGroup[];
     lists: TaskGroup[];
+}
+
+// 新增：目标任务统计接口
+export interface GoalTaskStats {
+    total_tasks: number;
+    completed_tasks: number;
 }
 
 // ==========================================
@@ -76,13 +85,18 @@ const getHeaders = () => ({
     "Authorization": `Bearer ${localStorage.getItem("access_token") || ""}`
 });
 
-const calculateProgress = (groups: TaskGroup[]): number => {
+const calculateStats = (groups: TaskGroup[]) => {
     let total = 0, completed = 0;
     groups.forEach(g => g.tasks.forEach(t => {
         total++;
         if (t.done) completed++;
     }));
-    return total === 0 ? 0 : Math.round((completed / total) * 100);
+
+    return {
+        total,
+        completed,
+        progress: total === 0 ? 0 : Math.round((completed / total) * 100)
+    };
 };
 
 // ==========================================
@@ -90,41 +104,75 @@ const calculateProgress = (groups: TaskGroup[]): number => {
 // ==========================================
 const enrichGoalData = async (apiGoal: ApiGoal): Promise<GoalUI> => {
     try {
-        // 1. 获取 Phases 列表
-        const res = await axios.get<ApiResponse<ApiPhase[]>>(`${API_BASE}/api/v1/phases`, {
-            params: { goal_id: apiGoal.id },
-            headers: getHeaders()
-        });
+        // 1. 并行发起所有请求
+        const [phasesRes, listIdsRes, allListsRes, statsRes] = await Promise.all([
+            // A. 获取阶段
+            axios.get<ApiResponse<ApiPhase[]>>(`${API_BASE}/api/v1/phases`, {
+                params: { goal_id: apiGoal.id },
+                headers: getHeaders()
+            }),
+            // B. 获取关联的 List ID
+            axios.get<ApiResponse<string[]>>(`${API_BASE}/api/v1/goals/${apiGoal.id}/task-lists`, {
+                headers: getHeaders()
+            }),
+            // C. 获取所有 Lists (为了匹配名字)
+            axios.get<ApiResponse<any[]>>(`${API_BASE}/api/v1/task-lists`, {
+                headers: getHeaders()
+            }),
+            // D. 【关键】获取统计数据 (使用你新增的接口)
+            axios.get<ApiResponse<{ total_tasks: number; completed_tasks: number }>>(
+                `${API_BASE}/api/v1/goals/${apiGoal.id}/task-stats`,
+                { headers: getHeaders() }
+            )
+        ]);
 
-        const apiPhases = res.data?.data || [];
+        // 2. 解构数据
+        const apiPhases = phasesRes.data?.data || [];
+        const linkedListIds = listIdsRes.data?.data || [];
+        const allLists = allListsRes.data?.data || [];
+        // 获取统计数字，默认为 0
+        const statsData = statsRes.data?.data || { total_tasks: 0, completed_tasks: 0 };
 
-        // 2. 获取任务时增加个体异常捕获
+        // 3. 匹配清单名字
+        const associatedListNames = allLists
+            .filter((list: any) => linkedListIds.includes(list.id))
+            .map((list: any) => list.name);
+
+        // 4. 处理 Phases 下的具体任务 (用于 UI 列表展示，不用于统计了)
         const phasesUI: TaskGroup[] = await Promise.all(apiPhases.map(async (p) => {
             try {
-                // 尝试获取任务，如果 405 或 500，则返回空数组
                 const taskRes = await axios.get<ApiResponse<any[]>>(`${API_BASE}/api/v1/phases/${p.id}/tasks`, {
                     headers: getHeaders()
                 });
-
                 const tasks = (taskRes.data?.data || []).map(t => ({
                     id: t.id,
                     text: t.name,
-                    done: t.is_completed
+                    done: t.is_completed // 请确保后端返回字段是 is_completed
                 }));
-
                 return { id: p.id, title: p.name, tasks };
             } catch (taskError) {
-                // 针对 405 错误静默处理，保证 Phase 标题能渲染
-                console.warn(`Task fetch failed for phase ${p.id}, returning empty list.`, taskError);
+                console.warn(`Task fetch failed for phase ${p.id}`, taskError);
                 return { id: p.id, title: p.name, tasks: [] };
             }
         }));
+
+        // 5. 计算进度百分比
+        // 注意：分母为 0 时进度为 0
+        const progressPercent = statsData.total_tasks === 0
+            ? 0
+            : Math.round((statsData.completed_tasks / statsData.total_tasks) * 100);
 
         return {
             id: apiGoal.id,
             title: apiGoal.name,
             description: apiGoal.description || "",
-            progress: calculateProgress(phasesUI),
+
+            // 使用后端返回的统计数据
+            progress: progressPercent,
+            totalTasks: statsData.total_tasks,
+            completedTasks: statsData.completed_tasks,
+
+            taskListNames: associatedListNames,
             timeline: [
                 { date: new Date(apiGoal.created_at).toLocaleDateString().slice(0, 5), done: true },
                 { date: "Today", done: false }
@@ -134,12 +182,14 @@ const enrichGoalData = async (apiGoal: ApiGoal): Promise<GoalUI> => {
         };
     } catch (error) {
         console.error(`Critical failure in enriching goal ${apiGoal.id}:`, error);
-        // 最终兜底：至少返回目标名称
         return {
             id: apiGoal.id,
             title: apiGoal.name,
             description: "",
             progress: 0,
+            totalTasks: 0,
+            completedTasks: 0,
+            taskListNames: [],
             timeline: [],
             phases: [],
             lists: []
@@ -186,6 +236,20 @@ export const GoalService = {
         }
     },
 
+    async updateGoal(id: string, name: string, description: string): Promise<boolean> {
+        try {
+            const res = await axios.put(`${API_BASE}/api/v1/goals/${id}`,
+                { name, description },
+                { headers: getHeaders() }
+            );
+            // 文档显示成功返回 code: 0
+            return res.data?.code === 0;
+        } catch (e) {
+            console.error("Update Goal Failed", e);
+            return false;
+        }
+    },
+
     // 删除目标
     async deleteGoal(id: string): Promise<boolean> {
         try {
@@ -193,6 +257,35 @@ export const GoalService = {
             return res.data.code === 0;
         } catch (e) {
             return false;
+        }
+    },
+
+    // 获取目标下的任务统计（总数和已完成数）
+    async getGoalTaskStats(goalId: string): Promise<GoalTaskStats | null> {
+        try {
+            const res = await axios.get<ApiResponse<GoalTaskStats>>(
+                `${API_BASE}/api/v1/goals/${goalId}/task-stats`,
+                { headers: getHeaders() }
+            );
+            return res.data.code === 0 ? res.data.data : null;
+        } catch (e) {
+            console.error("Get Goal Task Stats Failed", e);
+            return null;
+        }
+    },
+
+    // 获取目标下的 Task List ID 列表
+    async getGoalTaskListIds(goalId: string): Promise<string[]> {
+        try {
+            const res = await axios.get<ApiResponse<string[]>>(
+                `${API_BASE}/api/v1/goals/${goalId}/task-lists`,
+                { headers: getHeaders() }
+            );
+            // 确保返回的是数组，如果出错或 code!=0 则返回空数组
+            return res.data.code === 0 && Array.isArray(res.data.data) ? res.data.data : [];
+        } catch (e) {
+            console.error("Get Goal Task List IDs Failed", e);
+            return [];
         }
     },
 
@@ -248,6 +341,45 @@ export const GoalService = {
     // ==========================================
     // Phase & Task 基础操作
     // ==========================================
+    async createPhase(goalId: string, name: string): Promise<boolean> {
+        try {
+            const res = await axios.post(`${API_BASE}/api/v1/phases`,
+                { goal_id: goalId, name },
+                { headers: getHeaders() }
+            );
+            // 文档 201 响应 Schema 中 code 仍为 0
+            return res.data?.code === 0;
+        } catch (e) {
+            console.error("Create Phase Failed", e);
+            return false;
+        }
+    },
+
+    async updatePhase(phaseId: string, name: string): Promise<boolean> {
+        try {
+            const res = await axios.put(`${API_BASE}/api/v1/phases/${phaseId}`,
+                { name },
+                { headers: getHeaders() }
+            );
+            return res.data?.code === 0;
+        } catch (e) {
+            console.error("Update Phase Failed", e);
+            return false;
+        }
+    },
+
+    async deletePhase(phaseId: string): Promise<boolean> {
+        try {
+            const res = await axios.delete(`${API_BASE}/api/v1/phases/${phaseId}`, {
+                headers: getHeaders()
+            });
+            return res.data?.code === 0;
+        } catch (e) {
+            console.error("Delete Phase Failed", e);
+            return false;
+        }
+    },
+
     async createPhaseTask(phaseId: string, name: string): Promise<boolean> {
         try {
             const res = await axios.post(`${API_BASE}/api/v1/phases/${phaseId}/tasks`,
@@ -266,5 +398,18 @@ export const GoalService = {
             );
             return res.data?.code === 0;
         } catch (e) { return false; }
-    }
+    },
+
+    async deletePhaseTask(taskId: string): Promise<boolean> {
+        try {
+            // 注意：此处路径必须是 /api/v1/phases/tasks/ 开头
+            const res = await axios.delete(`${API_BASE}/api/v1/phases/tasks/${taskId}`, {
+                headers: getHeaders()
+            });
+            return res.data?.code === 0;
+        } catch (e) {
+            console.error("Delete Task Failed", e);
+            return false;
+        }
+    },
 };

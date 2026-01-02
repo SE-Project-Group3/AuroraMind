@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Loader2, Circle, List, CheckSquare, Square } from 'lucide-react';
+import { X, Loader2, Circle, List, CheckSquare, Square, Edit3 } from 'lucide-react';
 import { GoalService, type BreakdownItem } from '../api/goals';
 
 // 定义带勾选状态的项目类型
@@ -11,39 +11,45 @@ interface BreakdownModalProps {
     isOpen: boolean;
     onClose: () => void;
     goalId: string;
+    goalTitle: string;
     onSuccess?: () => void;
 }
 
-const BreakdownModal: React.FC<BreakdownModalProps> = ({ isOpen, onClose, goalId, onSuccess }) => {
+const BreakdownModal: React.FC<BreakdownModalProps> = ({ isOpen, onClose, goalId, goalTitle, onSuccess }) => {
     const [inputText, setInputText] = useState('');
-    const [items, setItems] = useState<SelectableItem[]>([]);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
+    // 🔴 修改状态定义：不再只存 items，而是拆分 summary 和 items
+    const [generatedSummary, setGeneratedSummary] = useState('');
+    const [items, setItems] = useState<SelectableItem[]>([]);
 
     if (!isOpen) return null;
+
+    // 导航栏和侧边栏尺寸（如有变化请同步调整）
+    const NAV_HEIGHT = 64; // px, 假设TopNavigation高度为64px
+    const SIDEBAR_WIDTH = 224; // px, 假设LeftNavigation宽度为224px
 
     // 逻辑：拆解目标并默认全部勾选
     const handleBreakdown = async () => {
         if (!inputText.trim()) return;
         setLoading(true);
-
         try {
-            const rawItems = await GoalService.breakdownGoal(goalId, inputText);
+            const data = await GoalService.breakdownGoal(goalId, inputText);
 
-            console.log("Items received in Modal:", rawItems);
+            if (data && data.length > 0) {
+                // 💡 核心逻辑：提取第一项作为 Summary
+                const firstItem = data[0];
+                const remainingItems = data.slice(1);
 
-            if (rawItems && rawItems.length > 0) {
-                // 🌟 必须确保这里设置了状态，才会触发重新渲染显示右侧
-                const selectable = rawItems.map(item => ({
-                    ...item,
-                    checked: true // 默认全部勾选
-                }));
-                setItems(selectable);
+                setGeneratedSummary(firstItem.text);
+
+                // 剩下的作为任务列表，默认勾选
+                setItems(remainingItems.map(item => ({ ...item, checked: true })));
             } else {
-                alert("AI returned empty results. Check backend prompt/logs.");
+                alert("AI returned empty results.");
             }
-        } catch (err) {
-            console.error("Modal breakdown error:", err);
+        } catch (error) {
+            console.error(error);
         } finally {
             setLoading(false);
         }
@@ -66,17 +72,40 @@ const BreakdownModal: React.FC<BreakdownModalProps> = ({ isOpen, onClose, goalId
 
         setSaving(true);
         try {
-            const success = await GoalService.submitBreakdownSelection(goalId, {
+            // 操作 A: 更新 Goal 的 Description (使用第一项)
+            // 注意：这里我们使用传入的 goalTitle 和生成的 generatedSummary
+            const updateGoalPromise = GoalService.updateGoal(goalId, goalTitle, generatedSummary);
+
+            // 操作 B: 保存选中的 Tasks
+            const saveTasksPromise = GoalService.submitBreakdownSelection(goalId, {
                 task_list_name: "AI Action Plan",
-                items: selectedItems.map(({ order, text }) => ({ order, text })) // 还原为后端要求的格式
+                items: selectedItems.map(({ order, text }) => ({ order, text }))
             });
-            if (success) {
+
+            // 并行执行两个请求
+            const [updateSuccess, saveSuccess] = await Promise.all([updateGoalPromise, saveTasksPromise]);
+
+            if (updateSuccess && saveSuccess) {
+                onSuccess?.();
+                onClose();
+            } else {
+                alert("Partial success: Check network logs.");
+                // 即使部分成功也尝试关闭刷新，防止用户卡死
                 onSuccess?.();
                 onClose();
             }
+        } catch (e) {
+            console.error("Apply failed", e);
         } finally {
             setSaving(false);
         }
+    };
+
+    // 清除状态并关闭
+    const handleClose = () => {
+        setItems([]);
+        setInputText('');
+        onClose();
     };
 
     // 将任务平分为两组（模拟原型图中的 List-A 和 List-B）
@@ -85,11 +114,38 @@ const BreakdownModal: React.FC<BreakdownModalProps> = ({ isOpen, onClose, goalId
     const groupB = items.slice(half);
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm p-4">
-            <div className={`bg-white rounded-3xl shadow-2xl transition-all duration-500 flex overflow-hidden ${items.length > 0 ? 'max-w-5xl w-full' : 'max-w-2xl w-full'}`}>
+        <div
+            className="fixed z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm p-4"
+            style={{
+                top: NAV_HEIGHT,
+                left: SIDEBAR_WIDTH,
+                right: 0,
+                bottom: 0,
+                // 只覆盖主内容区，不覆盖导航栏和侧边栏
+            }}
+        >
+            <div
+                className={`bg-white rounded-3xl shadow-2xl transition-all duration-500 flex overflow-hidden w-full ${items.length > 0 ? 'max-w-5xl' : 'max-w-2xl'}`}
+                style={{
+                    maxHeight: '80vh', // 弹窗最大高度
+                }}
+            >
 
                 {/* --- 左侧面板：输入与引导 --- */}
-                <div className={`p-10 flex-1 transition-all ${items.length > 0 ? 'border-r border-gray-100 bg-gray-50/30' : ''}`}>
+                <div className={`p-10 flex-1 transition-all ${items.length > 0 ? 'border-r border-gray-100 bg-gray-50/30' : ''}`}
+                    style={{ maxHeight: '80vh', overflowY: 'auto' }}
+                >
+                    {/* 🟢 关闭按钮：现在它相对于左侧面板定位 */}
+                    <div className="relative">
+                        <button
+                            onClick={handleClose}
+                            className="absolute top-0 right-0 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-all z-30"
+                            style={{ transform: 'translate(50%,-50%)' }}
+                        >
+                            <X size={20} />
+                        </button>
+                    </div>
+
                     <div className="relative h-full flex flex-col">
                         <div className="text-center space-y-2 mb-10">
                             <h2 className="text-3xl font-bold text-gray-900">AI–Powered Goal Breakdown</h2>
@@ -129,44 +185,82 @@ const BreakdownModal: React.FC<BreakdownModalProps> = ({ isOpen, onClose, goalId
                     </div>
                 </div>
 
-                {/* --- 右侧面板：结果展示（仅在有 items 时显示） --- */}
+                {/* --- 右侧面板：结果展示 --- */}
                 {items.length > 0 && (
-                    <div className="w-1/2 p-10 bg-white flex flex-col animate-in slide-in-from-right duration-500">
+                    <div className="w-1/2 p-10 bg-white flex flex-col animate-in slide-in-from-right duration-500"
+                         style={{ maxHeight: '90vh' }}
+                    >
                         <div className="flex justify-between items-start mb-6">
                             <div>
-                                <h2 className="text-2xl font-bold text-gray-900">Action Steps Generated</h2>
-                                <p className="text-sm text-gray-400">AI has structured a plan for you.</p>
+                                <h2 className="text-2xl font-bold text-gray-900">Action Plan</h2>
+                                <p className="text-sm text-gray-400">AI has structured your goal.</p>
                             </div>
-                            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                            <button onClick={handleClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
                                 <X size={20} className="text-gray-400" />
                             </button>
                         </div>
 
                         <div className="flex-1 overflow-y-auto pr-4 space-y-8 custom-scrollbar">
-                            {/* Main Goal Section */}
+
+                            {/* 🟢 Section 1: Generated Summary (Goal Description) */}
                             <section className="space-y-3">
-                                <h4 className="flex items-center gap-2 text-blue-500 font-bold uppercase tracking-wider text-xs">
-                                    <Circle size={14} fill="currentColor" /> Main Goal
+                                <h4 className="flex items-center gap-2 text-purple-600 font-bold uppercase tracking-wider text-xs">
+                                    <Edit3 size={14} /> New Goal Description
                                 </h4>
-                                <p className="text-gray-600 bg-blue-50/50 p-4 rounded-xl border border-blue-100 leading-relaxed italic">
-                                    "{inputText}"
-                                </p>
+                                <div className="relative group">
+                                    <textarea
+                                        value={generatedSummary}
+                                        onChange={(e) => setGeneratedSummary(e.target.value)}
+                                        className="w-full bg-purple-50/50 p-4 rounded-xl border border-purple-100 text-gray-700 leading-relaxed resize-none focus:bg-white focus:ring-2 focus:ring-purple-200 transition-all outline-none"
+                                        rows={3}
+                                    />
+                                    <span className="absolute bottom-2 right-2 text-[10px] text-purple-300 pointer-events-none">
+                                        Will update goal description
+                                    </span>
+                                </div>
                             </section>
 
-                            {/* Group A */}
-                            <TaskGroup title="Task Lists-A" items={groupA} onToggle={(idx) => toggleCheck(idx)} offset={0} />
-
-                            {/* Group B */}
-                            <TaskGroup title="Task Lists-B" items={groupB} onToggle={(idx) => toggleCheck(idx + half)} offset={half} />
+                            {/* 🟢 Section 2: Action Steps (Tasks) */}
+                            <section className="space-y-3">
+                                <h4 className="flex items-center gap-2 text-blue-500 font-bold uppercase tracking-wider text-xs">
+                                    <List size={14} /> Action Steps
+                                </h4>
+                                <div className="space-y-2">
+                                    {items.map((item, idx) => (
+                                        <div
+                                            key={idx}
+                                            onClick={() => toggleCheck(idx)}
+                                            className={`group flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer
+                                                ${item.checked
+                                                ? 'bg-white border-gray-200 hover:border-blue-300 hover:shadow-sm'
+                                                : 'bg-gray-50 border-transparent opacity-60'
+                                            }`}
+                                        >
+                                            <div className={`mt-0.5 transition-colors ${item.checked ? 'text-blue-500' : 'text-gray-300'}`}>
+                                                {item.checked ? <CheckSquare size={18} /> : <Square size={18} />}
+                                            </div>
+                                            <span className={`text-sm leading-relaxed transition-all ${item.checked ? 'text-gray-700' : 'text-gray-400 line-through'}`}>
+                                                {item.text}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
                         </div>
 
-                        <button
-                            onClick={handleApply}
-                            disabled={saving}
-                            className="mt-8 w-full py-4 bg-white border-2 border-blue-100 text-blue-500 rounded-2xl font-bold hover:bg-blue-500 hover:text-white transition-all shadow-xl flex items-center justify-center gap-2"
-                        >
-                            {saving ? <Loader2 className="animate-spin" /> : 'Apply Selection'}
-                        </button>
+                        {/* 底部按钮 */}
+                        <div className="mt-8 space-y-3">
+                            <button
+                                onClick={handleApply}
+                                disabled={saving}
+                                className="w-full py-4 bg-blue-500 text-white border border-blue-600 rounded-2xl font-bold hover:bg-blue-600 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 active:scale-[0.98]"
+                            >
+                                {saving ? <Loader2 className="animate-spin" /> : 'Confirm & Save Plan'}
+                            </button>
+                            <p className="text-xs text-center text-gray-400">
+                                This will update the goal description and add tasks.
+                            </p>
+                        </div>
                     </div>
                 )}
             </div>
