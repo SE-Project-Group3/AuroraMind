@@ -21,7 +21,11 @@
 
     .list-header {
       margin-bottom: 10px;
-      min-height: 40px; // Prevent jumping when switching modes
+      min-height: 40px;
+      position: relative; // Essential for absolute positioning of the right-side controls
+      display: flex;
+      justify-content: center; // Centers the H2
+      align-items: center;
 
       h2 {
         font-size: 1.3rem;
@@ -30,10 +34,45 @@
         margin: 0;
         padding: 5px 0;
         text-align: center;
-        width: 100%;
+        max-width: 60%; // Prevents title from overlapping with the absolute positioned actions
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
         
         &:hover {
           color: #3b82f6; // Blue highlight to indicate clickable
+        }
+      }
+
+      .header-actions {
+        position: absolute;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
+        align-items: center;
+
+        // 5. Unified button styling (removing tailwind dependencies)
+        .goal-btn {
+          background: none;
+          border: none;
+          cursor: pointer;
+          font-size: 0.75rem; // Equivalent to text-xs
+          font-weight: 600;   // Equivalent to font-semibold
+          color: #6b7280;     // Equivalent to text-gray-500
+          padding: 4px 8px;
+          border-radius: 4px;
+          transition: background-color 0.2s;
+          max-width: 110px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          display: block;
+          
+          &:hover {
+            background-color: #f1f5f9;
+            color: #374151;
+          }
         }
       }
 
@@ -157,4 +196,9 @@
       margin-top: auto;
     }
   }
+}
+
+.remove-association-option {
+  color: #ef4444 !important; // Red color
+  font-weight: 500 !important;
 }

@@ -3,6 +3,7 @@ import Button from '@mui/material/Button'
 import TextField from '@mui/material/TextField'
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
+import Select, { type SelectChangeEvent } from '@mui/material/Select';
 import { getLists, getTasks, updateTask, deleteTask, createTask, createList, updateList, deleteList, type Task } from "../../api/tasks"
 import { FaCheck, FaXmark, FaTrashCan } from "react-icons/fa6";
 import { useState, useEffect, useMemo } from 'react';
@@ -23,12 +24,27 @@ export const handle = {
 };
 
 export async function clientLoader({}: Route.LoaderArgs) {
-    const lists = await getLists();
+const rawLists = await getLists();
+    const goals = await GoalService.getAllGoals();
     const tasks = [];
-    for (const item of lists) {
+    
+    // Map lists to include the goal name immediately
+    const listsWithGoals: TaskList[] = rawLists.map(list => {
+        let goalName = undefined;
+        if (list.goal_id) {
+            const foundGoal = goals.find(g => g.id === list.goal_id);
+            if (foundGoal) {
+                goalName = foundGoal.title;
+            }
+        }
+        return { ...list, goalName };
+    });
+
+    for (const item of listsWithGoals) {
         tasks.push(await getTasks(item.id));
     }
-    return {lists: lists, tasks: tasks};
+    
+    return { lists: listsWithGoals, tasks: tasks };
 }
 clientLoader.hydrate = true;
 
@@ -139,14 +155,19 @@ export default function TodoView({loaderData}: Route.ComponentProps) {
         }
     };
 
-    const handleListUpdate = async (list: TaskListWithGoal, newName: string) => {
-        // 使用 ?? null 操作符。
-        // 如果 list.goalId 是 undefined，就传 null 给后端；否则传 string ID。
-        const updatedList = await updateList(list.id, newName, list.goalId ?? null);
+    const handleListUpdate = async (list: TaskList, newName: string) => {
+        // Pass the updated goal_id (if this was triggered by a goal change) to the backend
+        // Use the nullish coalescing operator to handle undefined
+        const updatedList = await updateList(list.id, newName, list.goal_id ?? null);
 
         if (updatedList) {
-            // 注意：这里保持原来的逻辑，手动合并 goalId，因为 updateList 的返回值可能不包含 goal 信息
-            setLists(prev => prev.map(l => l.id === list.id ? { ...updatedList, goalId: list.goalId, goalName: list.goalName } : l));
+            // Update state. Since the API response (updatedList) likely doesn't contain 'goalName',
+            // we manually preserve it from the 'list' object passed in.
+            setLists(prev => prev.map(l => l.id === list.id ? { 
+                ...updatedList, 
+                goal_id: list.goal_id, 
+                goalName: list.goalName 
+            } : l));
         } else {
             alert("Failed to update list");
         }
@@ -304,14 +325,16 @@ export type TaskList = {
     user_id: string;
     created_at: string;
     updated_at: string;
+    goal_id?: string;
+    goalName?: string;
 };
 
 // Extended type for goal association
 export type TaskListWithGoal = TaskList & { goalId?: string; goalName?: string };
 
 export type ListHeaderProps = {
-    list: TaskListWithGoal;
-    onUpdate: (list: TaskListWithGoal, newName: string) => void;
+    list: TaskList;
+    onUpdate: (list: TaskList, newName: string) => void;
     onDelete: (listId: string) => void;
 };
 
@@ -320,6 +343,8 @@ export function ListHeader({ list, onUpdate, onDelete }: ListHeaderProps) {
     const [editName, setEditName] = useState(list.name);
     const [goals, setGoals] = useState<GoalUI[]>([]);
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+
+    // Goal name is now primarily derived from props
     const [currentGoalName, setCurrentGoalName] = useState(list.goalName || "");
 
     useEffect(() => {
@@ -328,19 +353,9 @@ export function ListHeader({ list, onUpdate, onDelete }: ListHeaderProps) {
         });
     }, []);
 
-    // Update goal name if list prop changes
     useEffect(() => {
         setCurrentGoalName(list.goalName || "");
     }, [list.goalName]);
-
-    const displayGoalName = useMemo(() => {
-        if (list.goalName) return list.goalName; // 刚关联完，内存里有名字
-        if (list.goalId && goals.length > 0) {
-            const foundGoal = goals.find(g => g.id === list.goalId);
-            return foundGoal ? foundGoal.title : ""; // 查找到名字
-        }
-        return "";
-    }, [list.goalId, list.goalName, goals]);
 
     const handleSave = () => {
         if (editName.trim()) {
@@ -359,13 +374,14 @@ export function ListHeader({ list, onUpdate, onDelete }: ListHeaderProps) {
     };
 
     const handleGoalSelect = async (goalId: string, goalTitle: string) => {
-        await onUpdate({ ...list, goalId, goalName: goalTitle }, list.name);
+        // Pass the updated goal information to the parent handler
+        await onUpdate({ ...list, goal_id: goalId, goalName: goalTitle }, list.name);
         setCurrentGoalName(goalTitle);
         setAnchorEl(null);
     };
 
     const handleRemoveAssociation = async () => {
-        await onUpdate({ ...list, goalId: undefined, goalName: undefined }, list.name);
+        await onUpdate({ ...list, goal_id: undefined, goalName: undefined }, list.name);
         setCurrentGoalName("");
         setAnchorEl(null);
     };
@@ -377,34 +393,40 @@ export function ListHeader({ list, onUpdate, onDelete }: ListHeaderProps) {
     if (!isEditing) {
         return (
             <div className="list-header">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h2 onClick={() => setIsEditing(true)} title="Click to edit list name">
-                        {list.name}
-                    </h2>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        {displayGoalName ? (
-                            <button className="goal-label text-xs text-gray-500 font-semibold link-goal-btn" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }} onClick={handleGoalButtonClick}>
-                                Goal: {displayGoalName}
-                            </button>
-                        ) : (
-                            <button className="link-goal-btn" onClick={handleGoalButtonClick}>
-                                Associate Goal
-                            </button>
+                <h2 onClick={() => setIsEditing(true)} title="Click to edit list name">
+                    {list.name}
+                </h2>
+
+                <div className="header-actions">
+                    <button 
+                        className="goal-btn" 
+                        onClick={handleGoalButtonClick}
+                        title={currentGoalName ? `Goal: ${currentGoalName}` : "Associate Goal"}
+                    >
+                        {currentGoalName ? `Goal: ${currentGoalName}` : "Associate Goal"}
+                    </button>
+                    
+                    <Menu
+                        anchorEl={anchorEl}
+                        open={Boolean(anchorEl)}
+                        onClose={handleMenuClose}
+                    >
+                        {/* Only show if a goal is actually associated */}
+                        {currentGoalName && (
+                            <MenuItem 
+                                onClick={handleRemoveAssociation} 
+                                className="remove-association-option"
+                            >
+                                Remove Association
+                            </MenuItem>
                         )}
-                        <Menu
-                            anchorEl={anchorEl}
-                            open={Boolean(anchorEl)}
-                            onClose={handleMenuClose}
-                        >
-                            <MenuItem onClick={handleRemoveAssociation} style={{ color: 'red' }}>Remove Association</MenuItem>
-                            {goals.map(goal => (
-                                <MenuItem key={goal.id} onClick={() => handleGoalSelect(goal.id, goal.title)}>
-                                    {goal.title}
-                                </MenuItem>
-                            ))}
-                            <MenuItem onClick={handleMenuClose}>Cancel</MenuItem>
-                        </Menu>
-                    </div>
+                        
+                        {goals.map(goal => (
+                            <MenuItem key={goal.id} onClick={() => handleGoalSelect(goal.id, goal.title)}>
+                                {goal.title}
+                            </MenuItem>
+                        ))}
+                    </Menu>
                 </div>
             </div>
         );
