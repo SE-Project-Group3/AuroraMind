@@ -7,6 +7,7 @@ export interface TaskList{
     user_id: string;
     created_at: string;
     updated_at: string;
+    goal_id?: string;
 }
 
 export interface Task{
@@ -38,14 +39,6 @@ export async function getLists(): Promise<TaskList[]> {
                  Authorization: token ? `Bearer ${token}` : ""
             },
         });
-    if (res.status === 200) {
-        // 关键步骤：映射数据
-        return res.data.data.map((item: any) => ({
-            ...item,
-            goalId: item.goal_id, // 把后端的 goal_id 赋值给前端的 goalId
-            // 如果后端将来加了 goal_name，这里也可以映射: goalName: item.goal_name
-        }));
-    }
     return res.data.data;
 }
 
