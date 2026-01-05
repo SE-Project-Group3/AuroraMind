@@ -159,6 +159,8 @@ class TaskService:
             task_list_id=task_data.task_list_id,
             end_date=task_data.end_date,
         )
+        if task_data.is_completed:
+            new_task.completed_at = utcnow()
         if task_data.start_date:
             new_task.start_date = task_data.start_date
 
@@ -290,6 +292,11 @@ class TaskService:
             task.name = task_data.name
         if task_data.is_completed is not None:
             task.is_completed = task_data.is_completed
+            if task_data.is_completed:
+                if task.completed_at is None:
+                    task.completed_at = utcnow()
+            else:
+                task.completed_at = None
         if task_data.start_date is not None:
             task.start_date = task_data.start_date
         if task_data.end_date is not None:

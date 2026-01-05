@@ -15,4 +15,4 @@ from app.models.phase_task import PhaseTask  # noqa: F401
 from app.models.goal import Goal  # noqa: F401
 from app.models.knowledge_document import KnowledgeDocument  # noqa: F401
 from app.models.knowledge_chunk import KnowledgeChunk  # noqa: F401
-
+from app.models.summary import Summary  # noqa: F401
