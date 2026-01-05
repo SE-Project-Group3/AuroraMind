@@ -16,6 +16,14 @@ export function LeftNavigation() {
     { icon: <FaPenClip />, label: "Summary", to: "/app/summary" },
   ];
 
+  useEffect(() => {
+    if (collapsed) {
+      document.body.classList.add('nav-collapsed');
+    } else {
+      document.body.classList.remove('nav-collapsed');
+    }
+  }, [collapsed]);
+
   return (
     <aside className={`left-nav ${collapsed ? "collapsed" : ""}`}>
       <div className="top-section">

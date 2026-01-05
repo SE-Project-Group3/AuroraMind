@@ -252,65 +252,27 @@ export default function TodoView({loaderData}: Route.ComponentProps) {
                             onUpdate={handleListUpdate} 
                             onDelete={handleListDelete} 
                         />
-                        <TodoList 
-                            title="To do" 
-                            tasks={uncompleted} 
-                            listId={list.id}
-                            onToggle={handleTaskToggle} 
-                            onUpdate={handleTaskSave}
-                            onDelete={handleTaskDelete}
-                            onAdd={handleAddTask}
-                        />
-                        <TodoList 
-                            title="Completed" 
-                            tasks={completed} 
-                            listId={list.id}
-                            onToggle={handleTaskToggle} 
-                            onUpdate={handleTaskSave}
-                            onDelete={handleTaskDelete}
-                            onAdd={handleAddTask}
-                        />
-                        {index === 0 && (
-                            <div className="add-list-wrapper">
-                                {!isCreatingList ? (
-                                    <button 
-                                        className="add-task" 
-                                        onClick={() => setIsCreatingList(true)}
-                                    >
-                                        + Add a new list
-                                    </button>
-                                ) : (
-                                    <div className="add-list-form">
-                                        <TextField 
-                                            size="small" 
-                                            variant="outlined"
-                                            value={newListName}
-                                            onChange={(e) => setNewListName(e.target.value)}
-                                            placeholder="List Name"
-                                            autoFocus
-                                            fullWidth
-                                        />
-                                        <div className="form-actions">
-                                            <Button 
-                                                variant="contained" 
-                                                size="small" 
-                                                onClick={handleCreateList}
-                                                className="btn-confirm"
-                                            >
-                                                <FaCheck />
-                                            </Button>
-                                            <Button 
-                                                variant="contained" 
-                                                size="small" 
-                                                onClick={() => setIsCreatingList(false)}
-                                                className="btn-cancel">
-                                                <FaXmark />
-                                            </Button>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
+                        <div className="list-content-wrapper">
+                            <TodoList 
+                                title="To do" 
+                                tasks={uncompleted} 
+                                listId={list.id}
+                                onToggle={handleTaskToggle} 
+                                onUpdate={handleTaskSave}
+                                onDelete={handleTaskDelete}
+                                onAdd={handleAddTask}
+                            />
+                            <TodoList 
+                                title="Completed" 
+                                tasks={completed} 
+                                listId={list.id}
+                                onToggle={handleTaskToggle} 
+                                onUpdate={handleTaskSave}
+                                onDelete={handleTaskDelete}
+                                onAdd={handleAddTask}
+                            />
+                        </div>
+                        {index === 0 && renderAddListForm()}
                     </div>
                 );
         })}
@@ -487,7 +449,7 @@ export type TodoListProps = {
 
 export function TodoList({ title, tasks, listId, onToggle, onUpdate, onDelete, onAdd }: TodoListProps) {
     return (
-    <div className="list-column">
+    <div className="todo-list-section">
         <h2 className="section-title">{title}</h2>
 
         <ul className="task-list">

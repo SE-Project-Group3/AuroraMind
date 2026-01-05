@@ -2,22 +2,33 @@
   display: flex;
   gap: 1.5rem;
   background: #f8fafc;
-  height: 90vh;
-  overflow-y: auto;
-  margin-top: 10vh;
+  position: fixed; 
+  top: 10vh;       // Match top-nav-height
+  left: 15%;       // Match left-nav width
+  right: 0;        // Stretch to right edge
+  bottom: 0;       // Stretch to bottom edge
   z-index: 300;
   padding: 2rem 2rem;
+  overflow-x: auto; 
+  overflow-y: hidden;
+  align-items: flex-start;
+  transition: left 0.25s ease;
 
+  body.nav-collapsed & {
+    left: 5%;
+  }
+  
   .list-column {
     background: white;
     border-radius: 0.8rem;
-    padding: 1.5rem;
+    padding: 0.5rem;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    flex: 1;
-    min-width: 300px;
-    max-width: 400px;
+    flex: 0 0 350px; 
+    width: 350px;
+    height: 100%;
+    max-height: 100%;
 
     .list-header {
       margin-bottom: 10px;
@@ -26,6 +37,7 @@
       display: flex;
       justify-content: center; // Centers the H2
       align-items: center;
+      flex-shrink: 0;
 
       h2 {
         font-size: 1.3rem;
@@ -106,6 +118,25 @@
       }
     }
 
+    .list-content-wrapper {
+        display: flex;
+        flex-direction: column;
+        flex: 1;            // Fills all available height in the column
+        overflow: hidden;   // Prevents the wrapper itself from scrolling
+        min-height: 0;      // CSS Flexbox fix for nested scrolling
+        gap: 1rem;          // Space between To-Do and Completed sections
+        margin-bottom: 5px; 
+    }
+
+    // NEW CLASS (Renamed from inner .list-column)
+    .todo-list-section {
+        display: flex;
+        flex-direction: column;
+        flex: 1;            // Takes up 50% of the wrapper height each
+        min-height: 0;      // Allows shrinking if needed
+        overflow: hidden;   // Contains the scrollbar to the UL
+    }
+
     .section-title {
       margin-bottom: 0.5rem;
       font-weight: 600;
@@ -121,7 +152,9 @@
 
     .task-list {
       list-style: none;
-      padding: 0;
+      padding: 0 5px; // Slight padding for scrollbar space
+      overflow-y: auto; // SCROLL HAPPENS HERE
+      flex-grow: 1;
 
       li {
         display: flex;
@@ -151,18 +184,21 @@
       width: 100%;
       display: flex;
       justify-content: center;
-      padding-top: 1rem;
+      padding-top: 0.5rem;
+      flex-shrink: 0;
+      background: white;
     }
 
     .add-list-form {
       display: flex; 
       flex-direction: column; 
       gap: 10px;
-      margin-top: 1rem;
+      margin-top: 0;
       padding: 10px;
       border: 1px solid #e2e8f0;
       border-radius: 8px;
       background: #f8fafc;
+      width: 100%;
 
       // Target the MUI TextField root to set background
       .MuiTextField-root {
