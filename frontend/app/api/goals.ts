@@ -138,23 +138,8 @@ const enrichGoalData = async (apiGoal: ApiGoal): Promise<GoalUI> => {
             .filter((list: any) => linkedListIds.includes(list.id))
             .map((list: any) => list.name);
 
-        // 4. 处理 Phases 下的具体任务 (用于 UI 列表展示，不用于统计了)
-        const phasesUI: TaskGroup[] = await Promise.all(apiPhases.map(async (p) => {
-            try {
-                const taskRes = await axios.get<ApiResponse<any[]>>(`${API_BASE}/api/v1/phases/${p.id}/tasks`, {
-                    headers: getHeaders()
-                });
-                const tasks = (taskRes.data?.data || []).map(t => ({
-                    id: t.id,
-                    text: t.name,
-                    done: t.is_completed // 请确保后端返回字段是 is_completed
-                }));
-                return { id: p.id, title: p.name, tasks };
-            } catch (taskError) {
-                console.warn(`Task fetch failed for phase ${p.id}`, taskError);
-                return { id: p.id, title: p.name, tasks: [] };
-            }
-        }));
+        // useless legacy code
+        const phasesUI: TaskGroup[] = [];
 
         // 5. 计算进度百分比
         // 注意：分母为 0 时进度为 0
@@ -205,9 +190,6 @@ export const GoalService = {
     async getAllGoals(): Promise<GoalUI[]> {
         try {
             const res = await axios.get(`${API_BASE}/api/v1/goals`, { headers: getHeaders() });
-
-            // 调试：看看原始的 res.data 到底长什么样
-            console.log("Raw Response Data:", res.data);
 
             // 如果后端结构是 { code: 0, data: [...] }
             const rawList = res.data?.data;

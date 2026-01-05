@@ -40,9 +40,7 @@ export default function goalsPage() {
     const loadData = async () => {
         try {
             setLoading(true);
-            console.log("正在请求数据...");
             const data = await GoalService.getAllGoals();
-            console.log("从后端拿到的数据:", data); // 👈 看这里打印的是什么
             setGoals(data);
         } catch (e) {
             console.error("加载失败:", e);
@@ -102,7 +100,7 @@ export default function goalsPage() {
     return (
         <div className="flex-1 bg-gray-50 min-h-screen p-8 ml-[15%] transition-[margin] duration-250 ease-in-out [.nav-collapsed_&]:ml-[5%]">
             <div className="flex justify-between items-center mb-8 h-16"></div>
-            <div className="max-w-8xl mx-auto">
+            <div className="max-w-6xl mx-auto">
                 {loading ? (
                     <div className="flex justify-center items-center h-64">
                         <div className="animate-spin rounded-full h-8 w-10 border-b-2 border-blue-500"></div>

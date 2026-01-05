@@ -44,7 +44,7 @@ const rawLists = await getLists();
         tasks.push(await getTasks(item.id));
     }
     
-    return { lists: listsWithGoals, tasks: tasks };
+    return { lists: listsWithGoals, tasks: tasks, goals: goals };
 }
 clientLoader.hydrate = true;
 
@@ -57,6 +57,7 @@ export default function TodoView({loaderData}: Route.ComponentProps) {
     const [tasks, setTasks] = useState(loaderData.tasks.flat());
     const [isCreatingList, setIsCreatingList] = useState(false);
     const [newListName, setNewListName] = useState("");
+    const { goals } = loaderData;
 
     const handleTaskToggle = async (task: Task) => {
         if (task.id.startsWith('temp-')) return;
@@ -241,7 +242,6 @@ export default function TodoView({loaderData}: Route.ComponentProps) {
             {lists && tasks && lists.map((list, index) => {
                 let taskItems = tasks.filter((item) => item.task_list_id === list.id)
 
-                console.log(taskItems);
                 const uncompleted = taskItems.filter(t => !t.is_completed);
                 const completed = taskItems.filter(t => t.is_completed);
 
@@ -249,6 +249,7 @@ export default function TodoView({loaderData}: Route.ComponentProps) {
                     <div className="list-column" key={list.id}>
                         <ListHeader 
                             list={list} 
+                            goals={goals}
                             onUpdate={handleListUpdate} 
                             onDelete={handleListDelete} 
                         />
@@ -296,24 +297,18 @@ export type TaskListWithGoal = TaskList & { goalId?: string; goalName?: string }
 
 export type ListHeaderProps = {
     list: TaskList;
+    goals: GoalUI[];
     onUpdate: (list: TaskList, newName: string) => void;
     onDelete: (listId: string) => void;
 };
 
-export function ListHeader({ list, onUpdate, onDelete }: ListHeaderProps) {
+export function ListHeader({ list, goals, onUpdate, onDelete }: ListHeaderProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [editName, setEditName] = useState(list.name);
-    const [goals, setGoals] = useState<GoalUI[]>([]);
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
     // Goal name is now primarily derived from props
     const [currentGoalName, setCurrentGoalName] = useState(list.goalName || "");
-
-    useEffect(() => {
-        GoalService.getAllGoals().then(res => {
-            setGoals(res);
-        });
-    }, []);
 
     useEffect(() => {
         setCurrentGoalName(list.goalName || "");
