@@ -11,8 +11,13 @@ $top-nav-height: 10vh;
   flex-direction: column;
   flex: 0 0 auto;
   align-self: stretch;
-  justify-content: center;
+  justify-content: flex-start;
   background-color: #f8f9fa;
+  overflow-y: auto; 
+  overflow-x: hidden;
+  position: fixed;
+  left: 0;
+  bottom: 0;
 
   &.collapsed {
     width: 5%;
@@ -26,7 +31,7 @@ $top-nav-height: 10vh;
     display: flex;
     justify-content: left;
     align-items: center;
-    margin-bottom: 1rem;
+    margin-bottom: 2rem;
 
     .collapse-btn {
       background: none;
@@ -40,10 +45,11 @@ $top-nav-height: 10vh;
 
   .nav-menu {
     display: flex;
-    flex-grow: 1;
+    flex-grow: 0;
     justify-content: center;
     flex-direction: column;
     gap: 0.5rem;
+    padding-bottom: 2rem;
   }
 
   .nav-item {

@@ -34,3 +34,6 @@ class Task(BaseModel):
     end_date: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=True, comment="end date of the task"
     )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, comment="completion timestamp"
+    )

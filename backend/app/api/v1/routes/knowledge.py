@@ -161,7 +161,7 @@ async def query_knowledge(
             user_id=current_user.id,
             query=payload.question,
             top_k=payload.top_k,
-            document_id=payload.document_id,
+            document_ids=payload.document_ids if payload.document_ids else None,
         )
     except RuntimeError as exc:
         raise HTTPException(
@@ -186,6 +186,31 @@ async def query_knowledge(
 @router.post(
     "/conversation/stream",
     response_class=StreamingResponse,
+    description=(
+        "Server-Sent Events stream. Events: context, meta, delta, done, error. "
+        "Each event uses 'data: <json>'."
+    ),
+    responses={
+        200: {
+            "content": {
+                "text/event-stream": {
+                    "example": (
+                        "event: context\n"
+                        "data: {\"contexts\":[{\"document_id\":\"00000000-0000-0000-0000-000000000000\",\"chunk_index\":0,"
+                        "\"content\":\"...\",\"score\":0.12,\"stored_filename\":\"file.pdf\",\"original_filename\":\"file.pdf\"}]}\n\n"
+                        "event: meta\n"
+                        "data: {\"conversation_id\":\"abc123\"}\n\n"
+                        "event: delta\n"
+                        "data: {\"text\":\"Hello\"}\n\n"
+                        "event: delta\n"
+                        "data: {\"text\":\" world\"}\n\n"
+                        "event: done\n"
+                        "data: {\"ok\":true}\n\n"
+                    )
+                }
+            }
+        }
+    },
 )
 async def conversation_stream(
     payload: KnowledgeConversationRequest,
@@ -198,10 +223,9 @@ async def conversation_stream(
             user_id=current_user.id,
             question=payload.question,
             top_k=payload.top_k,
-            document_id=payload.document_id,
+            document_ids=payload.document_ids if payload.document_ids else None,
             conversation_id=payload.conversation_id,
             max_context_chars=payload.max_context_chars,
         ),
         media_type="text/event-stream",
     )
-

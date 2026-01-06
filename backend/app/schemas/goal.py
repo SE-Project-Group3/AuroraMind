@@ -28,3 +28,8 @@ class GoalResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class GoalTaskCountsResponse(BaseModel):
+    total_tasks: int
+    completed_tasks: int

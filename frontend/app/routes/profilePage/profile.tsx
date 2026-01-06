@@ -154,25 +154,25 @@ export default function ProfilePage() {
 
             {/* 个人信息区域 */}
             <div className="flex flex-col items-center justify-center mb-16">
-                <div className="relative">
-                    <div className="w-28 h-28 rounded-full border-2 border-dashed border-blue-300 p-1.5 flex items-center justify-center">
-                        <div className="w-full h-full rounded-full bg-blue-100 flex items-center justify-center text-blue-500">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" viewBox="0 0 20 20" fill="currentColor">
-                                <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                            </svg>
-                        </div>
-                    </div>
+                {/*<div className="relative">*/}
+                {/*    <div className="w-28 h-28 rounded-full border-2 border-dashed border-blue-300 p-1.5 flex items-center justify-center">*/}
+                {/*        <div className="w-full h-full rounded-full bg-blue-100 flex items-center justify-center text-blue-500">*/}
+                {/*            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" viewBox="0 0 20 20" fill="currentColor">*/}
+                {/*                <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />*/}
+                {/*            </svg>*/}
+                {/*        </div>*/}
+                {/*    </div>*/}
 
-                    {/* 编辑按钮 - 点击切换编辑状态 */}
-                    <button
-                        onClick={() => setIsEditing(!isEditing)}
-                        className="absolute bottom-1 right-1 bg-blue-500 text-white p-1.5 rounded-full shadow-sm hover:bg-blue-600 border-2 border-white"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                        </svg>
-                    </button>
-                </div>
+                {/*    /!* 编辑按钮 - 点击切换编辑状态 *!/*/}
+                {/*    <button*/}
+                {/*        onClick={() => setIsEditing(!isEditing)}*/}
+                {/*        className="absolute bottom-1 right-1 bg-blue-500 text-white p-1.5 rounded-full shadow-sm hover:bg-blue-600 border-2 border-white"*/}
+                {/*    >*/}
+                {/*        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">*/}
+                {/*            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />*/}
+                {/*        </svg>*/}
+                {/*    </button>*/}
+                {/*</div>*/}
 
                 {/* 用户名展示与修改 */}
                 <div className="mt-4 text-center">
@@ -209,13 +209,13 @@ export default function ProfilePage() {
             <div className="flex flex-col items-center space-y-4">
                 <button
                     onClick={logout}
-                    className="w-64 py-3 bg-orange-50 hover:bg-orange-100 text-blue-500 font-medium rounded-lg shadow-sm border border-orange-100 transition-colors"
+                    className="w-64 py-3 bg-gray-50 hover:bg-gray-100 text-blue-500 font-medium rounded-lg shadow-sm border border-gray-100 transition-colors"
                 >
                     Log Out
                 </button>
-                <button className="text-gray-300 hover:text-red-400 text-sm transition-colors font-medium">
-                    Delete Account
-                </button>
+                {/*<button className="text-gray-300 hover:text-red-400 text-sm transition-colors font-medium">*/}
+                {/*    Delete Account*/}
+                {/*</button>*/}
             </div>
         </div>
     );

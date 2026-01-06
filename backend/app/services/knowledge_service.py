@@ -253,7 +253,7 @@ class KnowledgeService:
         user_id: uuid.UUID,
         query: str,
         top_k: int = 5,
-        document_id: uuid.UUID | None = None,
+        document_ids: Sequence[uuid.UUID] | None = None,
     ) -> list[tuple[KnowledgeChunk, KnowledgeDocument, float]]:
         if top_k <= 0:
             top_k = 5
@@ -282,8 +282,8 @@ class KnowledgeService:
             .order_by(distance)
             .limit(top_k)
         )
-        if document_id:
-            stmt = stmt.where(KnowledgeDocument.id == document_id)
+        if document_ids:
+            stmt = stmt.where(KnowledgeDocument.id.in_(set(document_ids)))
 
         result = await db.execute(stmt)
         rows = result.all()
@@ -318,7 +318,7 @@ class KnowledgeService:
         user_id: uuid.UUID,
         question: str,
         top_k: int = 3,
-        document_id: uuid.UUID | None = None,
+        document_ids: Sequence[uuid.UUID] | None = None,
         conversation_id: str | None = None,
         max_context_chars: int = 12000,
         timeout_s: float = 60,
@@ -337,7 +337,7 @@ class KnowledgeService:
                 user_id=user_id,
                 query=question,
                 top_k=top_k,
-                document_id=document_id,
+                document_ids=document_ids,
             )
             contexts = [
                 KnowledgeContext(
@@ -404,4 +404,3 @@ class KnowledgeService:
                 + json.dumps({"error": str(e)}, ensure_ascii=False)
                 + "\n\n"
             )
-

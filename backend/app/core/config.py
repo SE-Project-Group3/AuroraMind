@@ -104,5 +104,10 @@ class Settings(BaseSettings):
     DIFY_API_BASE: str = "https://api.dify.ai/v1"
     DIFY_BR_API_KEY: str | None = None
     DIFY_KB_API_KEY: str | None = None
+    DIFY_SUMMARY_API_KEY: str | None = None
+
+    SUMMARY_AUTOGEN_ENABLED: bool = True
+    SUMMARY_AUTOGEN_HOUR_UTC: int = 23
+    SUMMARY_AUTOGEN_MINUTE_UTC: int = 55
     
 settings = Settings()  # type: ignore
