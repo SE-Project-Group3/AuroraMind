@@ -24,23 +24,32 @@ export async function loader({}: Route.LoaderArgs) {
 export default function goalsPage() {
     const [goals, setGoals] = useState<GoalUI[]>([]);
     const [loading, setLoading] = useState(true);
-    const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingGoal, setEditingGoal] = useState<GoalUI | null>(null);
     const navigate = useNavigate();
+    // breakdown modal state
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [currentGoalId, setCurrentGoalId] = useState<string>("你的目标ID");
+
+    // --- 获取数据 ---
+    const fetchMyGoals = async () => {
+        const data = await GoalService.getAllGoals();
+        setGoals(data);
+    };
 
     // --- 初始化数据 ---
     const loadData = async () => {
         try {
             setLoading(true);
-            const data = await GoalService.getAllGoals(); // 直接调用 Service
+            const data = await GoalService.getAllGoals();
             setGoals(data);
         } catch (e) {
-            console.error("Failed to load goals", e);
+            console.error("加载失败:", e);
         } finally {
             setLoading(false);
         }
     };
 
+    // --- 更新数据 ---
     const refreshData = async () => {
         const data = await GoalService.getAllGoals();
         setGoals(data);
@@ -89,7 +98,7 @@ export default function goalsPage() {
 
     // --- 渲染 ---
     return (
-        <div className="flex-1 bg-gray-50 min-h-screen p-8">
+        <div className="flex-1 bg-gray-50 min-h-screen p-8 ml-[15%] transition-[margin] duration-250 ease-in-out [.nav-collapsed_&]:ml-[5%]">
             <div className="flex justify-between items-center mb-8 h-16"></div>
             <div className="max-w-6xl mx-auto">
                 {loading ? (
@@ -109,7 +118,12 @@ export default function goalsPage() {
 
                             <GoalItem
                                 data={goal}
-                                onOpenBreakdown={() => setIsModalOpen(true)}
+                                onOpenBreakdown={() => {
+                                    // 🔴 必须先设置 ID，再打开弹窗
+                                    console.log("Setting currentGoalId to:", goal.id);
+                                    setCurrentGoalId(goal.id);
+                                    setIsModalOpen(true);
+                                }}
                                 onOpenResource={() => {
                                     navigate('/app/knowledge');
                                 }}
@@ -128,13 +142,23 @@ export default function goalsPage() {
                     </button>
                 </div>
             </div>
-            <BreakdownModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+            <BreakdownModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                goalId={currentGoalId}
+                goalTitle={goals.find(g => g.id === currentGoalId)?.title || ''}
+                onSuccess={() => {
+                    console.log("保存成功，刷新数据...");
+                    fetchMyGoals(); // 成功后刷新列表
+                }}
+            />
+
             {/* [4] 渲染新的编辑弹窗 */}
             <GoalEditModal
                 isOpen={!!editingGoal}
                 goal={editingGoal}
                 onClose={() => setEditingGoal(null)}
-                onGoalUpdated={refreshData} // 数据变动时，静默刷新
+                onGoalUpdated={loadData}
             />
         </div>
     );

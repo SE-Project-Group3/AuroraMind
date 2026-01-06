@@ -7,6 +7,7 @@ export interface TaskList{
     user_id: string;
     created_at: string;
     updated_at: string;
+    goal_id?: string;
 }
 
 export interface Task{
@@ -61,7 +62,7 @@ export async function createList(name: string, goal_id = null) {
     return null;
 }
 
-export async function updateList(listId: string, name: string, goal_id = null) {
+export async function updateList(listId: string, name: string, goal_id: string | null = null) {
     const token = localStorage.getItem("access_token");
     const res = await axios.put(`${API_BASE}/api/v1/task-lists/${listId}`,
         {

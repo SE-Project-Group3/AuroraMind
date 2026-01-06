@@ -24,6 +24,39 @@ async def list_tasks(
         return ok([])
     return ok([TaskResponse.model_validate(task) for task in tasks])
 
+@router.get(
+    "/pending/count",
+    response_model=StandardResponse[int],
+)
+async def count_pending_tasks(
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> StandardResponse[int]:
+    count = await task_service.count_pending_tasks(db, current_user.id)
+    return ok(count)
+
+@router.get(
+    "/overdue/count",
+    response_model=StandardResponse[int],
+)
+async def count_overdue_tasks(
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> StandardResponse[int]:
+    count = await task_service.count_overdue_tasks(db, current_user.id)
+    return ok(count)
+
+@router.get(
+    "/completed/count",
+    response_model=StandardResponse[int],
+)
+async def count_completed_tasks(
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> StandardResponse[int]:
+    count = await task_service.count_completed_tasks(db, current_user.id)
+    return ok(count)
+
 
 @router.post(
     "",
@@ -89,4 +122,3 @@ async def delete_task(
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
     return ok(True)
-

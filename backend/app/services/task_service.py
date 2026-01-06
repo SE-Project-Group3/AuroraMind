@@ -3,12 +3,13 @@ from __future__ import annotations
 import uuid
 from collections.abc import Sequence
 
-from sqlalchemy import and_, select
+from sqlalchemy import and_, select, func
 from sqlalchemy.sql import Select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.task import Task
 from app.models.task_list import TaskList
+from app.models.base import utcnow
 from app.services.goal_service import GoalService
 from app.schemas.task import TaskCreate, TaskUpdate
 from app.schemas.task_list import TaskListCreate, TaskListUpdate
@@ -26,7 +27,14 @@ class TaskListService:
     ) -> TaskList | None:
         existing_task_list = await self.get_task_list_by_name(db, task_list_data.name, user_id)
         if existing_task_list:
-            return None
+            # Append suffix to avoid collision
+            base = task_list_data.name
+            suffix = 1
+            candidate = f"{base} ({suffix})"
+            while await self.get_task_list_by_name(db, candidate, user_id):
+                suffix += 1
+                candidate = f"{base} ({suffix})"
+            task_list_data.name = candidate
 
         if task_list_data.goal_id:
             goal = await self.goal_service.get_goal(db, task_list_data.goal_id, user_id)
@@ -151,6 +159,8 @@ class TaskService:
             task_list_id=task_data.task_list_id,
             end_date=task_data.end_date,
         )
+        if task_data.is_completed:
+            new_task.completed_at = utcnow()
         if task_data.start_date:
             new_task.start_date = task_data.start_date
 
@@ -190,6 +200,83 @@ class TaskService:
         result = await db.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def count_pending_tasks(
+        self,
+        db: AsyncSession,
+        user_id: uuid.UUID,
+    ) -> int:
+        stmt = select(func.count()).select_from(Task).where(
+            and_(
+                Task.user_id == user_id,
+                Task.is_completed.is_(False),
+                Task.is_deleted.is_(False),
+            )
+        )
+        result = await db.execute(stmt)
+        return int(result.scalar_one() or 0)
+
+    async def count_overdue_tasks(
+        self,
+        db: AsyncSession,
+        user_id: uuid.UUID,
+    ) -> int:
+        stmt = select(func.count()).select_from(Task).where(
+            and_(
+                Task.user_id == user_id,
+                Task.is_completed.is_(False),
+                Task.is_deleted.is_(False),
+                Task.end_date.is_not(None),
+                Task.end_date < func.now(),
+            )
+        )
+        result = await db.execute(stmt)
+        return int(result.scalar_one() or 0)
+
+    async def count_completed_tasks(
+        self,
+        db: AsyncSession,
+        user_id: uuid.UUID,
+    ) -> int:
+        stmt = select(func.count()).select_from(Task).where(
+            and_(
+                Task.user_id == user_id,
+                Task.is_completed.is_(True),
+                Task.is_deleted.is_(False),
+            )
+        )
+        result = await db.execute(stmt)
+        return int(result.scalar_one() or 0)
+
+    async def count_tasks_by_goal(
+        self,
+        db: AsyncSession,
+        user_id: uuid.UUID,
+        goal_id: uuid.UUID,
+    ) -> tuple[int, int]:
+        """
+        Returns (total_tasks, completed_tasks) for all tasks under the goal's task lists.
+        Phase tasks are stored separately, so they are naturally excluded.
+        """
+        stmt = (
+            select(
+                func.count().label("total"),
+                func.count().filter(Task.is_completed.is_(True)).label("completed"),
+            )
+            .select_from(Task)
+            .join(TaskList, Task.task_list_id == TaskList.id)
+            .where(
+                Task.user_id == user_id,
+                Task.is_deleted.is_(False),
+                TaskList.is_deleted.is_(False),
+                TaskList.goal_id == goal_id,
+            )
+        )
+        result = await db.execute(stmt)
+        row = result.one()
+        total = int(row.total or 0)
+        completed = int(row.completed or 0)
+        return total, completed
+
     async def update_task(
         self,
         db: AsyncSession,
@@ -205,6 +292,11 @@ class TaskService:
             task.name = task_data.name
         if task_data.is_completed is not None:
             task.is_completed = task_data.is_completed
+            if task_data.is_completed:
+                if task.completed_at is None:
+                    task.completed_at = utcnow()
+            else:
+                task.completed_at = None
         if task_data.start_date is not None:
             task.start_date = task_data.start_date
         if task_data.end_date is not None:

@@ -29,9 +29,15 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
             if (res.data?.access_token && res.data?.token_type) {
                 const { access_token, token_type } = res.data;
 
-                // 保存 token, 没封装
+                // 保存 token 到 localStorage
                 localStorage.setItem("access_token", access_token);
                 localStorage.setItem("token_type", token_type);
+
+                // 保存 token 到 Cookie (用于服务端访问)
+                // JWT token 包含特殊字符，需要进行 URL 编码
+                const expiresIn = res.data?.expires_in || 3600;
+                document.cookie = `access_token=${encodeURIComponent(access_token)}; path=/; max-age=${expiresIn}; SameSite=Lax`;
+                document.cookie = `token_type=${encodeURIComponent(token_type)}; path=/; max-age=${expiresIn}; SameSite=Lax`;
 
                 console.log("login success, will call onSuccess");
                 onSuccess?.();

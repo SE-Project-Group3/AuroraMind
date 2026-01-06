@@ -79,6 +79,35 @@ class Settings(BaseSettings):
     REDIS_PORT: int = 6379
     REDIS_PASSWORD: str = ""
     REDIS_DB: int = 0
-    
 
+    # Celery (defaults to Redis derived from REDIS_* if not set explicitly)
+    CELERY_BROKER_URL: str | None = None
+    CELERY_RESULT_BACKEND: str | None = None
+    # External AI (Dify/Gemini)
+    
+    KNOWLEDGE_STORAGE_ROOT: str = "data"
+    # Embeddings (local HF)
+    EMBEDDING_MODEL_NAME: str = "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
+    # Keep 768 to match existing pgvector schema/migration by default.
+    EMBEDDING_DIM: int = 768
+    # Local HF embedding options
+    HF_EMBEDDING_DEVICE: str = "cpu"  # "cpu" | "cuda" | "mps"
+    HF_EMBEDDING_BATCH_SIZE: int = 32
+
+    # Knowledge chunking (tuned for RAG QA; units are characters, not tokens)
+    KNOWLEDGE_CHUNK_SIZE: int = 700
+    KNOWLEDGE_CHUNK_OVERLAP: int = 120
+    # What we send back to frontend as "context preview" (avoid huge UI payloads)
+    KNOWLEDGE_CONTEXT_PREVIEW_CHARS: int = 400
+
+    # Dify (LLM QA)
+    DIFY_API_BASE: str = "https://api.dify.ai/v1"
+    DIFY_BR_API_KEY: str | None = None
+    DIFY_KB_API_KEY: str | None = None
+    DIFY_SUMMARY_API_KEY: str | None = None
+
+    SUMMARY_AUTOGEN_ENABLED: bool = True
+    SUMMARY_AUTOGEN_HOUR_UTC: int = 23
+    SUMMARY_AUTOGEN_MINUTE_UTC: int = 55
+    
 settings = Settings()  # type: ignore
