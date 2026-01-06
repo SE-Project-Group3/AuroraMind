@@ -169,20 +169,20 @@ export default function Dashboard() {
     }
 
     return (
-        <div className="p-6 bg-gray-50 min-h-screen">
-            <div className="flex justify-between items-center mb-8 h-16">
+        <div className="p-6 bg-gray-50 h-[calc(100vh-10vh)] mt-[10vh] transition-[margin] duration-300 ease-in-out ml-[15%] [.nav-collapsed_&]:ml-[5%] flex flex-col">
+            {/* <div className="flex justify-between items-center mb-8 h-16"> */}
                 {/* Header Placeholder */}
-            </div>
+            {/* </div> */}
 
-            <div className="max-w-[1600px] mx-auto">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <div className="max-w-[1600px] mx-auto w-full flex-1 flex flex-col gap-6 min-h-0">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0">
 
                     {/* Goals Section */}
-                    <div className="lg:col-span-2 bg-white rounded-2xl p-8 shadow-sm">
-                        <div className="text-center mb-8">
+                    <div className="lg:col-span-2 bg-white rounded-2xl p-8 shadow-sm flex flex-col overflow-hidden h-full">
+                        <div className="text-center mb-6 flex-shrink-0">
                             <h2 className="text-xl font-semibold text-gray-800">Goals</h2>
                         </div>
-                        <div className="px-4">
+                        <div className="flex-1 overflow-y-auto px-4 custom-scrollbar">
                             {goals.length > 0 ? (
                                 goals.map(goal => (
                                     <DashboardGoalItem key={goal.id} data={goal} />
@@ -194,14 +194,14 @@ export default function Dashboard() {
                     </div>
 
                     {/* Tasks Section */}
-                    <div className="lg:col-span-1 bg-white rounded-2xl p-6 shadow-sm flex flex-col h-full">
-                        <div className="text-center mb-6">
+                    <div className="lg:col-span-1 bg-white rounded-2xl p-6 shadow-sm flex flex-col overflow-hidden h-full">
+                        <div className="text-center mb-6 flex-shrink-0">
                             <h2 className="text-xl font-semibold text-gray-800">Today</h2>
                         </div>
 
                         <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
                             {todaysTasks.length > 0 ? (
-                                <ul className="space-y-3">
+                                <ul className="space-y-3 [&_li:not(.editing)]:flex [&_li:not(.editing)]:items-center [&_li:not(.editing)]:gap-3">
                                     {todaysTasks.map(task => (
                                         <TaskItem
                                             key={task.id}
@@ -224,7 +224,7 @@ export default function Dashboard() {
                 </div>
 
                 {/* Summary Section */}
-                <div className="w-full bg-white rounded-2xl p-8 shadow-sm min-h-[300px] flex items-center justify-center">
+                <div className="w-full bg-white rounded-2xl p-8 shadow-sm h-64 shrink-0 flex items-center justify-center">
                     <div className="text-center">
                         <h3 className="text-lg font-medium text-gray-800 mb-2">Summary</h3>
                         <p className="text-gray-400 text-sm">Your weekly summary will appear here.</p>
