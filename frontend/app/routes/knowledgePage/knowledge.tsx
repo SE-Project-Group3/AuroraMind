@@ -59,7 +59,7 @@ export default function KnowledgeBasePage({loaderData}: Route.ComponentProps) {
     // --- Chat State ---
     const [messages, setMessages] = useState<{role: string, content: string}[]>([]);
     const [input, setInput] = useState("");
-    const [chatSelectedDocId, setChatSelectedDocId] = useState<string | null>(null);
+    const [chatSelectedDocIds, setChatSelectedDocIds] = useState<string[]>([]);
     const [isDocSelectorOpen, setIsDocSelectorOpen] = useState(false);
     const [conversationId, setConversationId] = useState<string | null>(null);
 
@@ -120,7 +120,7 @@ export default function KnowledgeBasePage({loaderData}: Route.ComponentProps) {
 
     // Auto-Select First File on Folder Change
     useEffect(() => {
-        setChatSelectedDocId(null); 
+        setChatSelectedDocIds([]); // CHANGE: Reset to empty array
         if (filteredDocs.length > 0) {
             setSelectedDocId(filteredDocs[0].id);
         } else {
@@ -223,7 +223,11 @@ export default function KnowledgeBasePage({loaderData}: Route.ComponentProps) {
     }, [filteredDocs, selectedDocId]);
 
     const toggleChatDoc = (docId: string) => {
-        setChatSelectedDocId(prev => (prev === docId ? null : docId));
+        setChatSelectedDocIds(prev => 
+            prev.includes(docId)
+                ? prev.filter(id => id !== docId)
+                : [...prev, docId]
+        );
     };
 
     const handleSendMessage = async () => {
@@ -239,7 +243,7 @@ export default function KnowledgeBasePage({loaderData}: Route.ComponentProps) {
         try {
             await streamConversation(
                 currentInput, 
-                chatSelectedDocId,
+                chatSelectedDocIds,
                 (textChunk) => {
                     setMessages(prev => {
                         const newMessages = [...prev];
@@ -394,15 +398,15 @@ export default function KnowledgeBasePage({loaderData}: Route.ComponentProps) {
                                         <div className="p-3 text-sm text-gray-400 text-center">No docs available</div>
                                     ) : (
                                         filteredDocs.map(doc => {
-                                            const isSelected = chatSelectedDocId === doc.id;
+                                            const isSelected = chatSelectedDocIds.includes(doc.id);
                                             return (
                                                 <div 
                                                     key={doc.id} 
                                                     onClick={() => toggleChatDoc(doc.id)} 
                                                     className={`ds-item ${isSelected ? 'selected' : ''}`}
                                                 >
-                                                    <div className="checkbox">
-                                                        {isSelected && <div className="dot"></div>}
+                                                    <div className={`checkbox ${isSelected ? 'checked' : ''}`}>
+                                                        {isSelected && <Check size={12} strokeWidth={3} />}
                                                     </div>
                                                     <span title={doc.original_filename}>{doc.original_filename}</span>
                                                 </div>
@@ -415,13 +419,13 @@ export default function KnowledgeBasePage({loaderData}: Route.ComponentProps) {
 
                         <div className="input-wrapper">
                             <button 
-                                className={`icon-btn ${isDocSelectorOpen || chatSelectedDocId ? 'active' : ''}`} 
+                                className={`icon-btn ${isDocSelectorOpen || chatSelectedDocIds.length > 0 ? 'active' : ''}`} 
                                 onClick={() => setIsDocSelectorOpen(!isDocSelectorOpen)} 
                                 title="Select documents for context"
                             >
                                 <div className="badge-wrapper">
                                     <Plus size={18} />
-                                    {chatSelectedDocId && (
+                                    {chatSelectedDocIds.length > 0 && (
                                         <span className="badge-ping">
                                           <span className="ping-animation"></span>
                                           <span className="badge-dot"></span>
