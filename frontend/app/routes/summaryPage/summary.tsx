@@ -1,147 +1,179 @@
 import type { Route } from "./+types/summary";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
+import Button from '@mui/material/Button';
+import CircularProgress from '@mui/material/CircularProgress';
+
+import { SummaryService } from "../../api/summary";
+import type { SummaryItem } from "../../api/summary";
+
 import './summary.scss';
 
 export function meta({}: Route.MetaArgs) {
     return [
         { title: "Summary - AuroraMind" },
-        { name: "description", content: "Summary" },
+        { name: "description", content: "AI Summary of your progress" },
     ];
 }
 
-// loader
 export async function loader({}: Route.LoaderArgs) {
     return null;
 }
 
-
 export default function SummaryPage() {
+    const [weeklyData, setWeeklyData] = useState<SummaryItem[]>([]);
+    const [monthlyData, setMonthlyData] = useState<SummaryItem[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [isGenerating, setIsGenerating] = useState(false);
+
+    const fetchData = async () => {
+        try {
+            setLoading(true);
+            const [w, m] = await Promise.all([
+                SummaryService.getWeekly(),
+                SummaryService.getMonthly()
+            ]);
+            setWeeklyData(w);
+            setMonthlyData(m);
+        } catch (err) {
+            console.error("Failed to load data", err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchData();
+    }, []);
+
+    const handleGenerate = async () => {
+        setIsGenerating(true);
+        try {
+            const today = new Date().toISOString().split('T')[0];
+            await SummaryService.generate("weekly", today);
+            await fetchData();
+        } catch (error: any) {
+            alert("AI Generate failed");
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    const fmtDate = (str: string) => {
+        const d = new Date(str);
+        return `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1)
+            .toString().padStart(2,'0')}`;
+    };
+
+    if (loading) {
+        return (
+            <div className="loading-box">
+                <CircularProgress />
+            </div>
+        );
+    }
+
     return (
-    <div className="timeline-page-container">
-      <div className="timeline-wrapper">
-        <div className="timeline-column left-column">
-          {weeklyData.map((item) => (
-            <TimelineItem key={item.id} item={item} position="left" />
-          ))}
+        <div className="timeline-page-container">
+
+            {/* 时间轴 */}
+            <div className="timeline-wrapper">
+
+                <div className="timeline-column left-column">
+                    <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 700 }}>
+                        Weekly
+                    </Typography>
+                    {weeklyData.map((item, index) => (
+                        <TimelineRow
+                            key={item.id}
+                            item={item}
+                            position="left"
+                            date={fmtDate(item.period_start)}
+                            active={index === 0}
+                        />
+                    ))}
+                </div>
+
+                <div className="timeline-column right-column">
+                    <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 700 }}>
+                        Monthly
+                    </Typography>
+                    {monthlyData.map((item) => (
+                        <TimelineRow
+                            key={item.id}
+                            item={item}
+                            position="right"
+                            date={fmtDate(item.period_start)}
+                            active={false}
+                        />
+                    ))}
+                </div>
+
+            </div>
+
+            {/* 底部 Generate 操作 */}
+            <div className="summary-actions bottom">
+                <Button
+                    variant="contained"
+                    onClick={handleGenerate}
+                    disabled={isGenerating}
+                    sx={{
+                        borderRadius: '999px',
+                        textTransform: 'none',
+                        padding: '12px 32px',
+                        minWidth: '280px'
+                    }}
+                >
+                    {isGenerating ? "Processing..." : "Generate AI Weekly Summary"}
+                </Button>
+            </div>
+
         </div>
-        <div className="timeline-column right-column">
-          {monthlyData.map((item) => (
-            <TimelineItem key={item.id} item={item} position="right" />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
+    );
 }
 
-interface SummaryItem {
-  id: string;
-  dateLabel: string; // e.g., "17/11"
-  subLabel?: string; // e.g., "This week"
-  content: string;
-  isActive?: boolean; // To simulate the "selected" blue state in your image
-}
-
-// --- Mock Data ---
-const weeklyData: SummaryItem[] = [
-  {
-    id: 'w1',
-    dateLabel: '17/11',
-    subLabel: 'This week',
-    content: 'All summary content is automatically generated by AI based on the goals, lists, and tasks data.',
-    isActive: true,
-  },
-  {
-    id: 'w2',
-    dateLabel: '10/11',
-    content: 'Completed the migration of the database. Team velocity increased by 15%.',
-  },
-  {
-    id: 'w3',
-    dateLabel: '03/11',
-    content: 'Initial planning phase completed. Design mockups approved by the client.',
-  },
-  {
-    id: 'w4',
-    dateLabel: '27/10',
-    content: 'Kickoff meeting held. Stakeholders aligned on Q4 objectives.',
-  },
-];
-
-const monthlyData: SummaryItem[] = [
-  {
-    id: 'm1',
-    dateLabel: 'This month',
-    content: 'Overall productivity is up. Three major milestones achieved regarding the frontend refactor.',
-  },
-  {
-    id: 'm2',
-    dateLabel: '1/11',
-    content: 'November started with a focus on technical debt reduction and CI/CD pipeline improvements.',
-  },
-  {
-    id: 'm3',
-    dateLabel: '1/10',
-    content: 'October summary: 4 Sprints completed. 98% code coverage achieved.',
-  },
-  {
-    id: 'm4',
-    dateLabel: '1/9',
-    content: 'September focus was on hiring and onboarding new backend engineers.',
-  },
-  {
-    id: 'm5',
-    dateLabel: '1/8',
-    content: 'August was a slow month due to holidays, but maintenance tasks were cleared.',
-  },
-];
-
-// --- Helper Component for Individual Row ---
-interface TimelineItemProps {
-  item: SummaryItem;
-  position: 'left' | 'right';
-}
-
-export function TimelineItem({ item, position }: TimelineItemProps) {
+function TimelineRow({ item, position, date, active }: any) {
     return (
-    <div className={`timeline-row ${position}`}>
-      
-      {/* 1. Date Label */}
-      <div className="date-section">
-        {item.subLabel && <span className="sub-label">{item.subLabel}</span>}
-        <span className="main-label">{item.dateLabel}</span>
-      </div>
+        <div className={`timeline-row ${position}`}>
 
-      {/* 2. Graphic (Line & Dot) */}
-      <div className="line-section">
-        <div className="line" />
-        <div className="dot" />
-      </div>
+            <div className="date-section">
+                {active && <span className="sub-label">Recent</span>}
+                <span className="main-label">{date}</span>
+            </div>
 
-      {/* 3. Card */}
-      <div className="card-section">
-        <div className="card-wrapper">
-          <Card 
-            variant="outlined"
-            sx={{ 
-              borderRadius: '0.75rem',
-              borderColor: item.isActive ? '#90caf9' : 'rgba(0, 0, 0, 0.12)',
-              borderWidth: item.isActive ? '2px' : '1px',
-              backgroundColor: '#fff',
-              height: '100%' // Allows card to fill the wrapper height
-            }}
-          >
-            <CardContent sx={{ padding: '1rem !important' }}>
-              <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.9rem', lineHeight: 1.5 }}>
-                {item.content}
-              </Typography>
-            </CardContent>
-          </Card>
+            <div className="line-section">
+                <div className="line" />
+                <div className="dot" />
+            </div>
+
+            <div className="card-section">
+                {/* 恢复动画所需的 wrapper */}
+                <div className="card-wrapper">
+                    <Card
+                        variant="outlined"
+                        sx={{
+                            borderRadius: '0.75rem',
+                            borderColor: active ? '#90caf9' : 'divider',
+                            borderWidth: active ? '2px' : '1px',
+                            backgroundColor: '#fff',
+                            height: '100%'
+                        }}
+                    >
+                        <CardContent sx={{ padding: '1rem !important' }}>
+                            <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                sx={{ fontSize: '0.9rem', lineHeight: 1.5 }}
+                            >
+                                {item.content}
+                            </Typography>
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
+
         </div>
-      </div>
-    </div>
-  );
-};
+    );
+}
