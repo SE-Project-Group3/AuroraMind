@@ -13,17 +13,34 @@ $row-gap: 2rem;
 $date-col-width: 6rem;
 $line-col-width: 4rem;
 
+.summary-actions.bottom button {
+  width: 100%;
+  max-width: 640px;
+}
+
 .timeline-page-container {
   margin-top: $top-nav-height;
-  height: calc(100vh - #{$top-nav-height});
+  // height: calc(100vh - #{$top-nav-height});
   flex: 1;
-  width: 100%;
+  top: 0;
+  position: fixed;
+  left: 15%;
+  width: 85%;
   overflow-y: auto;
   background-color: $bg-color;
   padding: 2rem;
   box-sizing: border-box;
   display: flex;
+  flex-direction: column; //
+  align-items: center;    // 控制横向居中
   justify-content: center;
+  transition: left 0.25s ease;
+  bottom: 0;
+
+  body.nav-collapsed & {
+    left: 5%;
+    width: 95%
+  }
 
   .timeline-wrapper {
     display: flex;

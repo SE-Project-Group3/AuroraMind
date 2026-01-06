@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from celery import Celery
+from celery.schedules import crontab
 
 from app.core.config import settings
 
@@ -32,7 +33,17 @@ celery_app.conf.update(
     task_track_started=True,
 )
 
+if settings.SUMMARY_AUTOGEN_ENABLED:
+    celery_app.conf.beat_schedule = {
+        "summaries-generate-missing-daily": {
+            "task": "summaries.generate_missing",
+            "schedule": crontab(
+                hour=settings.SUMMARY_AUTOGEN_HOUR_UTC,
+                minute=settings.SUMMARY_AUTOGEN_MINUTE_UTC,
+            ),
+        }
+    }
+
 # Auto-discover tasks by importing `app.tasks` (package)
 celery_app.autodiscover_tasks(["app"])
-
 

@@ -19,6 +19,7 @@ class DifyAIService:
         self.api_base = settings.DIFY_API_BASE.rstrip("/") if settings.DIFY_API_BASE else None
         self.breakdown_api_key = settings.DIFY_BR_API_KEY
         self.knowledgebase_api_key = settings.DIFY_KB_API_KEY
+        self.summary_api_key = settings.DIFY_SUMMARY_API_KEY
 
     def _get_breakdown_headers(self) -> dict[str, str]:
         if not self.breakdown_api_key:
@@ -35,6 +36,15 @@ class DifyAIService:
             raise RuntimeError(msg)
         return {
             "Authorization": f"Bearer {self.knowledgebase_api_key}",
+            "Content-Type": "application/json",
+        }
+
+    def _get_summary_headers(self) -> dict[str, str]:
+        if not self.summary_api_key:
+            msg = "DIFY_SUMMARY_API_KEY is not configured"
+            raise RuntimeError(msg)
+        return {
+            "Authorization": f"Bearer {self.summary_api_key}",
             "Content-Type": "application/json",
         }
     
@@ -184,3 +194,44 @@ class DifyAIService:
                         last_answer = answer
                         if delta:
                             yield {"type": "delta", "text": delta}
+
+    async def summary_text(
+        self,
+        text: str,
+        user_id: str | None = None,
+        inputs: dict[str, Any] | None = None,
+        timeout_s: float = 60,
+    ) -> str:
+        """
+        Call Dify summary workflow with blocking response.
+        """
+        if not self.api_base:
+            msg = "DIFY_API_BASE is not configured"
+            raise RuntimeError(msg)
+
+        payload: dict[str, Any] = {
+            "inputs": {"description": text, **(inputs or {})},
+            "query": text,
+            "response_mode": "blocking",
+            "user": user_id or "system",
+        }
+
+        async with httpx.AsyncClient(timeout=timeout_s) as client:
+            resp = await client.post(
+                f"{self.api_base}/workflows/run",
+                json=payload,
+                headers=self._get_summary_headers(),
+            )
+            if resp.status_code >= 400:
+                body = resp.text
+                raise RuntimeError(
+                    f"Dify summary call failed: {resp.status_code} {body}"
+                )
+            data = resp.json()
+
+        outputs = data.get("data", {}).get("outputs", {})
+        if isinstance(outputs, dict):
+            text_output = outputs.get("text")
+            if isinstance(text_output, str):
+                return text_output.strip()
+        raise RuntimeError("Empty summary response from Dify")

@@ -1,9 +1,9 @@
 import Button from '@mui/material/Button'
-import { FaHouse, FaLocationCrosshairs, FaListUl, FaBook, FaPenClip, FaRotate, FaGear, FaRegUser, FaBars } from "react-icons/fa6";
+import { FaHouse, FaLocationCrosshairs, FaListUl, FaBook, FaPenClip, FaArrowRightFromBracket, FaGear, FaRegUser, FaBars } from "react-icons/fa6";
 import "./navigation.scss";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink } from "react-router";
-import { logout } from "../../api/auth"
+import { logout, getProfile } from "../../api/auth"
 
 export function LeftNavigation() {
   const [collapsed, setCollapsed] = useState(false);
@@ -15,6 +15,14 @@ export function LeftNavigation() {
     { icon: <FaBook />, label: "Knowledge Base", to: "/app/knowledge" },
     { icon: <FaPenClip />, label: "Summary", to: "/app/summary" },
   ];
+
+  useEffect(() => {
+    if (collapsed) {
+      document.body.classList.add('nav-collapsed');
+    } else {
+      document.body.classList.remove('nav-collapsed');
+    }
+  }, [collapsed]);
 
   return (
     <aside className={`left-nav ${collapsed ? "collapsed" : ""}`}>
@@ -51,21 +59,29 @@ export function LeftNavigation() {
 }
 
 export function TopNavigation() {
+  const [email, setEmail] = useState<string>("");
+
+  useEffect(() => {
+    getProfile().then(res => {
+      if (res.data && res.data.email) {
+        setEmail(res.data.email);
+      }
+    });
+  }, []);
+
   return <menu className="top-navigation">
     <span className={"title-name"}>AuroraMind</span>
     <div className="current-date"></div>
     <menu className="top-buttons">
-      <Button variant={"contained"} onClick={logout}>
-          <FaGear size={"1.2rem"} />
-      </Button>
-
         <NavLink to="/app/profile" style={{ textDecoration: 'none' }}>
             <Button variant="contained">
                 <FaRegUser size="1.2rem" />
             </Button>
         </NavLink>
-
+        <Button variant={"contained"} onClick={logout}>
+          <FaArrowRightFromBracket size={"1.2rem"} />
+        </Button>
     </menu>
-    <span className={"email-address"}>sample@gmail.com</span>
+    <span className={"email-address"}>{email || "未登录"}</span>
   </menu>
 }

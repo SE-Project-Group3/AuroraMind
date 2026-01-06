@@ -159,6 +159,8 @@ class TaskService:
             task_list_id=task_data.task_list_id,
             end_date=task_data.end_date,
         )
+        if task_data.is_completed:
+            new_task.completed_at = utcnow()
         if task_data.start_date:
             new_task.start_date = task_data.start_date
 
@@ -245,6 +247,36 @@ class TaskService:
         result = await db.execute(stmt)
         return int(result.scalar_one() or 0)
 
+    async def count_tasks_by_goal(
+        self,
+        db: AsyncSession,
+        user_id: uuid.UUID,
+        goal_id: uuid.UUID,
+    ) -> tuple[int, int]:
+        """
+        Returns (total_tasks, completed_tasks) for all tasks under the goal's task lists.
+        Phase tasks are stored separately, so they are naturally excluded.
+        """
+        stmt = (
+            select(
+                func.count().label("total"),
+                func.count().filter(Task.is_completed.is_(True)).label("completed"),
+            )
+            .select_from(Task)
+            .join(TaskList, Task.task_list_id == TaskList.id)
+            .where(
+                Task.user_id == user_id,
+                Task.is_deleted.is_(False),
+                TaskList.is_deleted.is_(False),
+                TaskList.goal_id == goal_id,
+            )
+        )
+        result = await db.execute(stmt)
+        row = result.one()
+        total = int(row.total or 0)
+        completed = int(row.completed or 0)
+        return total, completed
+
     async def update_task(
         self,
         db: AsyncSession,
@@ -260,6 +292,11 @@ class TaskService:
             task.name = task_data.name
         if task_data.is_completed is not None:
             task.is_completed = task_data.is_completed
+            if task_data.is_completed:
+                if task.completed_at is None:
+                    task.completed_at = utcnow()
+            else:
+                task.completed_at = None
         if task_data.start_date is not None:
             task.start_date = task_data.start_date
         if task_data.end_date is not None:

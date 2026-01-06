@@ -57,13 +57,22 @@ $red-400: #f87171;
 .knowledge-page {
   display: flex;
   flex-direction: column;
-  height: 90vh;
-  width: 100%;
+  top: 0;
+  position: fixed;
+  left: 15%;
+  width: 85%;
   margin-top: 5rem;
   background-color: #F3F4F6;
   padding: 1.5rem;
   overflow: hidden;
   box-sizing: border-box;
+  transition: right 0.25s ease;
+  bottom: 0;
+
+  body.nav-collapsed & {
+    left: 5%;
+    width: 95%
+  }
 
   /* --- Top Section: Header --- */
   .page-header {
