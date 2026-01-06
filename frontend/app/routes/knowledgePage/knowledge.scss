@@ -554,6 +554,103 @@ $red-400: #f87171;
   }
 }
 
+.message-bubble {
+  // Ensure the bubble grows to fit markdown content
+  overflow-wrap: break-word; 
+  
+  .markdown-content {
+    /* Spacing between elements */
+    & > *:first-child { margin-top: 0; }
+    & > *:last-child { margin-bottom: 0; }
+
+    p {
+      margin-bottom: 0.75rem;
+      line-height: 1.6;
+    }
+
+    /* Headings */
+    h1, h2, h3, h4 {
+      font-weight: 600;
+      margin-top: 1.5rem;
+      margin-bottom: 0.75rem;
+      color: inherit; /* Inherit from bubble text color */
+    }
+    h1 { font-size: 1.25em; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 0.25rem; }
+    h2 { font-size: 1.1em; }
+    h3 { font-size: 1em; text-decoration: underline; }
+
+    /* Lists */
+    ul, ol {
+      margin-bottom: 0.75rem;
+      padding-left: 1.5rem;
+    }
+    ul { list-style-type: disc; }
+    ol { list-style-type: decimal; }
+    li { margin-bottom: 0.25rem; }
+
+    /* Code Blocks & Inline Code */
+    code {
+      font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+      font-size: 0.85em;
+      background-color: rgba(0, 0, 0, 0.06);
+      padding: 0.1em 0.3em;
+      border-radius: 0.25rem;
+    }
+
+    pre {
+      background-color: $gray-800; // Dark background for blocks
+      color: $gray-100;
+      padding: 0.75rem;
+      border-radius: 0.5rem;
+      overflow-x: auto;
+      margin-bottom: 1rem;
+      
+      code {
+        background-color: transparent;
+        padding: 0;
+        color: inherit;
+        font-size: 0.8em;
+      }
+    }
+
+    /* Links */
+    a {
+      color: $blue-600;
+      text-decoration: underline;
+      &:hover { color: $blue-500; }
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 1rem;
+      font-size: 0.9em;
+      
+      th, td {
+        border: 1px solid rgba(0, 0, 0, 0.1); // Subtle border
+        padding: 0.5rem;
+        text-align: left;
+      }
+      
+      th {
+        background-color: rgba(0, 0, 0, 0.05);
+        font-weight: 600;
+      }
+    }
+    
+    /* Blockquotes */
+    blockquote {
+      border-left: 4px solid;
+      margin: 0 0 1rem 0;
+      padding-left: 1rem;
+      color: inherit;
+      opacity: 0.8;
+      font-style: italic;
+    }
+  }
+}
+
 @keyframes ping {
   75%, 100% {
     transform: scale(2);

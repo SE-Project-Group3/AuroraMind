@@ -10,7 +10,8 @@ import {
     Check,
     Trash2
 } from 'lucide-react';
-
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import './knowledge.scss'
 import { 
     listKnowledgeDocuments, 
@@ -381,7 +382,20 @@ export default function KnowledgeBasePage({loaderData}: Route.ComponentProps) {
                                 {messages.map((m, i) => (
                                     <div key={i} className={`message-row ${m.role === 'user' ? 'user' : 'assistant'}`}>
                                         <div className="message-bubble">
-                                            {m.content}
+                                            {m.role === 'user' ? (
+                                                m.content
+                                            ) : (
+                                                <div className="markdown-content">
+                                                    <ReactMarkdown 
+                                                        remarkPlugins={[remarkGfm]}
+                                                        components={{
+                                                            a: ({node, ...props}) => <a target="_blank" rel="noopener noreferrer" {...props} />
+                                                        }}
+                                                    >
+                                                        {m.content}
+                                                    </ReactMarkdown>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 ))}
