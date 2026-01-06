@@ -247,8 +247,11 @@ export default function KnowledgeBasePage({loaderData}: Route.ComponentProps) {
                 (textChunk) => {
                     setMessages(prev => {
                         const newMessages = [...prev];
-                        const lastMsg = newMessages[newMessages.length - 1];
-                        lastMsg.content += textChunk;
+                        const lastMsgIndex = newMessages.length - 1;
+                        newMessages[lastMsgIndex] = {
+                            ...newMessages[lastMsgIndex],
+                            content: newMessages[lastMsgIndex].content + textChunk
+                        };
                         return newMessages;
                     });
                 },
