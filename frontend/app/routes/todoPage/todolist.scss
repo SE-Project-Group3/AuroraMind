@@ -223,13 +223,22 @@
     } 
   }
 
-  .empty {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
+  &.empty-placeholder {
+    justify-content: center; // Vertically center everything
+    align-items: center;     // Horizontally center everything
+    gap: 1rem;               // Space between text and button
 
-    .add-task {
-      margin-top: auto;
+    .empty-message-container {
+        text-align: center;
+        width: 100%;
+    }
+
+    // Override the wrapper styles so it doesn't push to the bottom
+    .add-list-wrapper {
+        margin-top: 0; 
+        background: transparent;
+        padding-top: 0;
+        height: auto;
     }
   }
 }

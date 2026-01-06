@@ -189,7 +189,7 @@ export default function TodoView({loaderData}: Route.ComponentProps) {
     };
 
     const renderAddListForm = () => (
-        <div className="add-list-wrapper" style={lists.length === 0 ? { marginTop: 0, height: '100%', alignItems: 'center' } : {}}>
+        <div className="add-list-wrapper">
             {!isCreatingList ? (
                 <button 
                     className="add-task" 
@@ -234,8 +234,10 @@ export default function TodoView({loaderData}: Route.ComponentProps) {
         <div className="todo-view">
             {lists.length === 0 && (
                 <div className="list-column empty-placeholder">
-                    <h2 className="section-title">Welcome!</h2>
-                    <p style={{ color: '#6b7280', marginBottom: '1rem' }}>You don't have any To-do list yet.</p>
+                    <div className="empty-message-container">
+                        <h2 className="section-title">Welcome!</h2>
+                        <p style={{ color: '#6b7280', marginBottom: '1rem' }}>You don't have any To-do list yet.</p>
+                    </div>
                     {renderAddListForm()}
                 </div>
             )}

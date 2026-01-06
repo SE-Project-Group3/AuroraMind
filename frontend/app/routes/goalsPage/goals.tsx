@@ -100,7 +100,7 @@ export default function goalsPage() {
     return (
         <div className="flex-1 bg-gray-50 min-h-screen p-8 ml-[15%] transition-[margin] duration-250 ease-in-out [.nav-collapsed_&]:ml-[5%]">
             <div className="flex justify-between items-center mb-8 h-16"></div>
-            <div className="max-w-6xl mx-auto">
+            <div className="max-w-8xl mx-auto">
                 {loading ? (
                     <div className="flex justify-center items-center h-64">
                         <div className="animate-spin rounded-full h-8 w-10 border-b-2 border-blue-500"></div>
