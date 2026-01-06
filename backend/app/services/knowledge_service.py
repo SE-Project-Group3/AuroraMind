@@ -287,7 +287,16 @@ class KnowledgeService:
 
         result = await db.execute(stmt)
         rows = result.all()
-        return [(row[0], row[1], float(row[2])) for row in rows]
+        scored = [(row[0], row[1], float(row[2])) for row in rows]
+        if (
+            scored
+            and not document_ids
+            and settings.KNOWLEDGE_MAX_DISTANCE is not None
+        ):
+            best_distance = scored[0][2]
+            if best_distance > settings.KNOWLEDGE_MAX_DISTANCE:
+                return []
+        return scored
 
     def _build_context_text(
         self, contexts: list[KnowledgeChunk], *, max_chars: int

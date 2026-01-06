@@ -99,6 +99,9 @@ class Settings(BaseSettings):
     KNOWLEDGE_CHUNK_OVERLAP: int = 120
     # What we send back to frontend as "context preview" (avoid huge UI payloads)
     KNOWLEDGE_CONTEXT_PREVIEW_CHARS: int = 400
+    # Retrieval gating: if best distance is worse than this, skip context.
+    # Set to None to disable gating.
+    KNOWLEDGE_MAX_DISTANCE: float | None = 0.5
 
     # Dify (LLM QA)
     DIFY_API_BASE: str = "https://api.dify.ai/v1"
@@ -110,4 +113,4 @@ class Settings(BaseSettings):
     SUMMARY_AUTOGEN_HOUR_UTC: int = 23
     SUMMARY_AUTOGEN_MINUTE_UTC: int = 55
     
-settings = Settings()  # type: ignore
+settings = Settings()  # type: ignore[assignment]
