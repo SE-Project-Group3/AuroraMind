@@ -89,7 +89,7 @@ export async function deleteKnowledgeDocument(documentId: string): Promise<boole
 
 export async function streamConversation(
     message: string, 
-    documentId: string | null, 
+    documentIds: string[] | null, 
     onChunk: (text: string) => void,
     onMeta: (conversation_id: string) => void,
     onContext?: (context: any) => void, // Optional: to handle the 'context' event later
@@ -106,7 +106,7 @@ export async function streamConversation(
         body: JSON.stringify({
             question: message,
             top_k: 8,
-            document_id: documentId,
+            document_ids: documentIds,
             conversation_id: conversation_id
         })
     });
