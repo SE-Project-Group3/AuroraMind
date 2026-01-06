@@ -12,6 +12,7 @@ import {
     deleteTask as deleteTaskApi,
     type Task
 } from '../../api/tasks';
+import { SummaryService, type SummaryItem } from "../../api/summary";
 
 export function meta({}: Route.MetaArgs) {
     return [
@@ -24,6 +25,7 @@ export default function Dashboard() {
     // ==========================================
     // 1. 状态管理
     // ==========================================
+    const [latestSummary, setLatestSummary] = useState<SummaryItem | null>(null);
     const [goals, setGoals] = useState<GoalUI[]>([]);
     const [tasks, setTasks] = useState<Task[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -36,43 +38,31 @@ export default function Dashboard() {
             try {
                 setIsLoading(true);
 
-                // 1. 获取 Goals
-                const goalsPromise = GoalService.getAllGoals();
-
-                // 2. 获取 Tasks (逻辑稍微复杂，因为 API 限制需要 ListID)
-                // 策略：获取所有列表 -> 并行获取每个列表的任务 -> 展平数组
-                const tasksPromise = (async () => {
-                    try {
+                // 并行请求：Goals, Tasks, 和 Weekly Summary
+                const [fetchedGoals, fetchedTasks, fetchedSummaries] = await Promise.all([
+                    GoalService.getAllGoals(),
+                    (async () => {
                         const lists = await getLists();
                         if (!lists || lists.length === 0) return [];
-
-                        // 并行请求所有列表的任务
-                        const allTasksResponses = await Promise.all(
-                            lists.map(list => fetchTasksApi(list.id))
-                        );
-                        // 展平二维数组 [[task1], [task2, task3]] => [task1, task2, task3]
-                        return allTasksResponses.flat();
-                    } catch (e) {
-                        console.error("Error fetching tasks:", e);
-                        return [];
-                    }
-                })();
-
-                const [fetchedGoals, fetchedTasks] = await Promise.all([
-                    goalsPromise,
-                    tasksPromise
+                        const allTasks = await Promise.all(lists.map(l => fetchTasksApi(l.id)));
+                        return allTasks.flat();
+                    })(),
+                    SummaryService.getWeekly() // 获取周报列表
                 ]);
 
                 setGoals(fetchedGoals);
                 setTasks(fetchedTasks);
 
+                // 取最新的一条周报
+                if (fetchedSummaries && fetchedSummaries.length > 0) {
+                    setLatestSummary(fetchedSummaries[0]);
+                }
             } catch (error) {
-                console.error("Failed to load dashboard data", error);
+                console.error("Dashboard load error:", error);
             } finally {
                 setIsLoading(false);
             }
         };
-
         fetchData();
     }, []);
 
@@ -224,12 +214,46 @@ export default function Dashboard() {
                 </div>
 
                 {/* Summary Section */}
-                <div className="w-full bg-white rounded-2xl p-8 shadow-sm h-64 shrink-0 flex items-center justify-center">
-                    <div className="text-center">
-                        <h3 className="text-lg font-medium text-gray-800 mb-2">Summary</h3>
-                        <p className="text-gray-400 text-sm">Your weekly summary will appear here.</p>
+                <div className="w-full bg-white rounded-2xl p-8 shadow-sm h-64 shrink-0 flex flex-col overflow-hidden">
+                    <div className="flex justify-between items-center mb-4 flex-shrink-0">
+                        <h3 className="text-lg font-semibold text-gray-800">Weekly Summary</h3>
+                        {latestSummary && (
+                            <span className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-1 rounded font-bold uppercase tracking-wider">
+                {latestSummary.summary_type}
+            </span>
+                        )}
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
+                        {latestSummary ? (
+                            <div className="flex flex-col h-full justify-between">
+                                <div>
+                                    <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-wrap">
+                                        {latestSummary.content}
+                                    </p>
+                                </div>
+                                <div className="mt-4 pt-3 border-t border-gray-50 flex items-center justify-between text-[11px] text-gray-400">
+                                    <span>Week of {format(new Date(latestSummary.period_start), 'MMM dd, yyyy')}</span>
+                                    <span className="flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-400"></span>
+                                        {latestSummary.status}
+                    </span>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="h-full flex flex-col items-center justify-center text-center">
+                                <p className="text-gray-400 text-sm mb-3">No summary generated for this week.</p>
+                                <button
+                                    onClick={() => window.location.href = '/summary'}
+                                    className="text-indigo-600 text-xs font-semibold hover:text-indigo-700 transition-colors"
+                                >
+                                    + Generate AI Summary
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
+
             </div>
         </div>
     );
