@@ -13,6 +13,11 @@ $row-gap: 2rem;
 $date-col-width: 6rem;
 $line-col-width: 4rem;
 
+.summary-actions.bottom button {
+  width: 100%;
+  max-width: 640px;
+}
+
 .timeline-page-container {
   margin-top: $top-nav-height;
   // height: calc(100vh - #{$top-nav-height});
@@ -26,6 +31,8 @@ $line-col-width: 4rem;
   padding: 2rem;
   box-sizing: border-box;
   display: flex;
+  flex-direction: column; //
+  align-items: center;    // 控制横向居中
   justify-content: center;
   transition: left 0.25s ease;
   bottom: 0;
