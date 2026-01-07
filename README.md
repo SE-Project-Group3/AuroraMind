@@ -5,8 +5,13 @@ This repository contains the codebase for the AI Personal Growth Platform, a gro
 - `/backend`: FastAPI backend
 - `/frontend`: react frontend
 
-## Setup
-1. **Start the stack**
+## First time setup
+1. **Copy environment file**
+
+   - Copy `./backend/.env.example` to `./backend/.env`.
+   - Configure the API keys in `.env` file.
+
+2. **Start the stack**
 
    ```bash
    docker compose up -d --build
@@ -18,12 +23,6 @@ This repository contains the codebase for the AI Personal Growth Platform, a gro
    - `api` (FastAPI on `http://localhost:8080`)
    - `worker` (Celery worker consuming from Redis)
    - `frontend` (React router on `http://localhost:3000`)
-
-2. **Copy environment file**
-
-   ```bash
-   cp backend/.env.example backend/.env
-   ```
 
 3. **Run database migrations**
 
@@ -41,5 +40,12 @@ This repository contains the codebase for the AI Personal Growth Platform, a gro
    - Username: `test_user`
    - Password: `password`
 
-5. **Use the product**
-   Access the website from the browser on `http://localhost:3000`. You can use the seeded user from the previous step to have an overview of all the available features, or create a new user to explore.
+5. **Use the system**
+
+   Access the website from the browser on http://localhost:3000. You can use the seeded user from the previous step to have an overview of all the available features, or create a new user to explore.
+
+6. **Stop the stack**
+
+   ```bash
+   docker compose down
+   ```
