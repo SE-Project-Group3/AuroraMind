@@ -1,6 +1,6 @@
 // api/auth.ts
 import axios from "axios";
-const API_BASE = "http://127.0.0.1:8080";
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
 // login
 export interface LoginRequest {
