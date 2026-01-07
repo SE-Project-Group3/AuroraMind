@@ -19,13 +19,19 @@ This repository contains the codebase for the AI Personal Growth Platform, a gro
    - `worker` (Celery worker consuming from Redis)
    - `frontend` (React router on `http://localhost:3000`)
 
-2. **Run database migrations**
+2. **Copy environment file**
+
+   ```bash
+   cp backend/.env.example backend/.env
+   ```
+
+3. **Run database migrations**
 
    ```bash
    docker compose run --rm api alembic upgrade head
    ```
 
-3. **Seed test data**
+4. **Seed test data**
 
    ```bash
    docker compose exec api uv run python scripts/seed_test_data.py
@@ -35,5 +41,5 @@ This repository contains the codebase for the AI Personal Growth Platform, a gro
    - Username: `test_user`
    - Password: `password`
 
-4. **Use the product**
+5. **Use the product**
    Access the website from the browser on `http://localhost:3000`. You can use the seeded user from the previous step to have an overview of all the available features, or create a new user to explore.
